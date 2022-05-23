@@ -52,7 +52,7 @@ ptr<QueryResult> PathProblem::query(const arr& x){
   if(computeCollisions){
     C.stepSwift();
     //  C.stepFcl();
-    C.totalCollisionPenetration();
+    C.getTotalPenetrations();
   }
 //  C.reportProxies(std::cout, .001);
   evals++;
@@ -183,7 +183,7 @@ BallPathProblem::BallPathProblem(PathProblem& org, double d)
 
   //remove actuated frames
   FrameL robots;
-  for(rai::Frame *f: C.frames) if(f->joint){ robots.append(f); f->getRigidSubFrames(robots); }
+  for(rai::Frame *f: C.frames) if(f->joint){ robots.append(f); f->getRigidSubFrames(robots, false); }
   arr cen = zeros(3);
   cout <<"removing robot: ";
   for(rai::Frame *f: robots){
@@ -195,7 +195,7 @@ BallPathProblem::BallPathProblem(PathProblem& org, double d)
   while(robots.N) delete robots.popLast();
 
   //add a ball robot
-  if(!C.getFrameByName("world", false)) C.addFrame("world");
+  if(!C.getFrame("world", false)) C.addFrame("world");
   rai::Frame *b = C.addFrame("ball", "world");
   b->setShape(rai::ST_sphere, {d/2});
   b->setColor({1.,1.,0.});

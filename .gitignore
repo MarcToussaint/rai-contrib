@@ -25,6 +25,8 @@ vc60.idb
 .*.creator.user*
 .*.files
 .*.includes
+.*.cflags
+.*.cxxflags
 
 .cproject
 .project
@@ -38,6 +40,7 @@ tags
 # PYTHON
 *.pyc
 _*.py
+.ipynb_checkpoints
 
 
 # EXECUTION

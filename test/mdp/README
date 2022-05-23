@@ -1,0 +1,102 @@
+
+This code is a first implementation of EM-based solvers for POMDPs and
+MDPs. It is meant to be used as an executable - the source code is not
+very well readable. The code can solve for flat, hierarchical and factored
+controllers of 2 levels (see the -mode parameter). This package also includes
+functions for parsing different formats of POMDP files (including Tony
+Cassandra's format). This package is therefore standalone in the sense that it
+will read pomdp files given on the command line and output the value of the
+found policy (as well as various other information from the EM iterations). 
+
+When using the EM POMDP solver, please cite:
+
+  Marc Toussaint, Laurent Charlin, Pascal Poupart: Hierarchical POMDP
+  Controller Optimization by Likelihood Maximization. In Uncertainty
+  in Artificial Intelligence (UAI 2008).
+
+================================================================================
+
+COMPILE:
+
+make
+
+================================================================================
+
+USAGE:
+
+./mdp.exe -mode <integer> <parameters>
+
+================================================================================
+
+PARAMETERS:
+
+(see the MT.log file after execution to check the parameters)
+
+-mode <integer>    program mode:
+                   1 convert a .POMDP file from Tony's to my format (.arr)
+                   2 read and dump a .POMDP.arr file
+                   3 call a solver
+
+-method <integer>  select between solvers:
+                   0 ValueIteration (MDP)
+                   1 PrioritizedSweeping (MDP)
+                   2 PolicyIteration (MDP)
+                   3 EM (MDP)
+                   4 POMDP_EM (POMDP, factored or flat FSC)
+                   5 POMDP_EM_hierarchical (POMDP, strictly hierarchical FSC)
+
+-problem <string>  filename of the problem:
+                   either a .ppm image file for solving a maze,
+                   a .POMDP (Tony's format) for file conversion
+                   or a .POMDP.arr (my format) for solving a POMDP
+
+-d0 <integer>      number of nodes in the base level
+
+-d1 <integer>      number of nodes in the abstract level
+
+-Tcut <integer>    maximal length of DBN ($T_{max}$)
+
+-iterations <int>  number of EM iterations (or VI/PI iterations)
+
+-maxMstep <0/1>    use the max-Mstep rather than the standard Mstep. See the
+                   above cited UAI paper for more details.
+
+-gamma <float>     set gamma value (in maze problems, not in POMDP case)
+
+-seed <integer>    set the RNG seed. A constant value here makes for
+                   reproducible results.
+
+================================================================================
+
+EXAMPLES:
+
+solve a POMDP with a flat FSC with 100 nodes
+
+   ./mdp.exe -mode 3 -problem paint.95.POMDP.arr -method 4 -d0 100 -d1 1
+
+..with a factored FSC with 10+5 nodes
+
+   ./mdp.exe -mode 3 -problem paint.95.POMDP.arr -method 4 -d0 10 -d1 5
+
+..with a strictly hierarchical FSC with 10+5 nodes
+
+   ./mdp.exe -mode 3 -problem paint.95.POMDP.arr -method 5 -d0 10 -d1 5
+
+
+solve an MDP maze defined by a .ppm image with Value Iteration
+
+   ./mdp.exe -mode 3 -problem 15x20holes.ppm -method 0
+
+..with EM
+
+   ./mdp.exe -mode 3 -problem 15x20holes.ppm -method 3
+
+
+convert a .POMDP file to my format and inspect it
+
+   ./mdp.exe -mode 1 -problem paint.95.POMDP
+
+dump the contents of a binary .arr file in ascii
+
+   ./mdp.exe -mode 2 -problem paint.95.POMDP.arr
+

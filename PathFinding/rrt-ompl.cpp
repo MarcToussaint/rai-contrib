@@ -19,7 +19,7 @@ struct RobotSpace : public ob::RealVectorStateSpace{
 
     C.setJointState(c1);
 
-    auto f = C.getFrameByName(frame_name.c_str());
+    auto f = C.getFrame(frame_name.c_str());
     auto p1 = f->getPosition();
 
     return p1;
