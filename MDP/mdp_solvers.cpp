@@ -67,59 +67,58 @@ void mdp::getMaxPxxMap(uintA& PxxMap, const arr& Pxax, const arr& pi){
 // Dynamic Programming
 //
 
-double mdp::Qvalue(uint a, uint x, const arr&V, const MDP& mdp){
+double mdp::MDP::Qvalue(uint a, uint x, const arr& V) const{
   uint y, j;
-  uintA *neighbors=&mdp.neighbors(x);
+  uintA& neigh = neighbors.elem(x);
   double Qax=0.;
-  for(j=0; j<neighbors->N; j++){
-    y=(*neighbors)(j);
-    Qax+=mdp.Pxax(y, a, x) * V(y);
+  for(j=0; j<neigh.N; j++){
+    y=neigh(j);
+    Qax+=Pxax(y, a, x) * V(y);
   }
-  Qax *= mdp.gamma;
-  Qax += mdp.Rax(a, x);
+  Qax *= gamma;
+  Qax += Rax(a, x);
   return Qax;
 }
 
-void mdp::Qfunction(arr& Q, const arr&V, const MDP& mdp){
-  uint x, a, X=mdp.Px.N, A=mdp.Pxax.d1;
-  
-  for(x=0; x<X; x++) for(a=0; a<A; a++) Q(a, x)=Qvalue(a, x, V, mdp);
+void mdp::MDP::Qfunction(arr& Q, const arr& V) const{
+  uint x, a, X=Px.N, A=Pxax.d1;
+  Q.resize(A, X).setZero();
+  for(x=0; x<X; x++) for(a=0; a<A; a++) Q(a, x) = Qvalue(a, x, V);
 }
 
-void mdp::valueIteration(arr& V, const MDP& mdp){
-  uint x, a, X=mdp.Px.N, A=mdp.Pxax.d1;
-  if(V.N!=X){ V.resize(X); V.setZero(); }
+void mdp::MDP::valueIteration(arr& V) const{
+  uint x, a, X=Px.N, A=Pxax.d1;
+  if(V.N!=X) V.resize(X).setZero();
   double Qax;
-  static arr Vnew;
-  Vnew.resize(X);
+  arr Vnew(X);
   for(x=0; x<X; x++) for(a=0; a<A; a++){
-      Qax=Qvalue(a, x, V, mdp);
+      Qax = Qvalue(a, x, V);
       if(!a || Qax>Vnew(x)) Vnew(x)=Qax;
-    }
+  }
   V=Vnew;
 }
 
-void mdp::policyEvaluation(arr& V, const arr& pi, const MDP& mdp){
-  uint x, a, X=mdp.Px.N, A=mdp.Pxax.d1;
+void mdp::MDP::policyEvaluation(arr& V, const arr& pi) const{
+  uint x, a, X=Px.N, A=Pxax.d1;
   if(V.N!=X){ V.resize(X); V.setZero(); }
-  static arr Vnew;
+  arr Vnew;
   Vnew.resize(X);
   Vnew.setZero();
   for(x=0; x<X; x++) for(a=0; a<A; a++){
-      Vnew(x) += pi(a, x) * Qvalue(a, x, V, mdp);
-    }
+      Vnew(x) += pi(a, x) * Qvalue(a, x, V);
+  }
   V=Vnew;
 }
 
-void mdp::maxPolicy(arr& pi, const arr& V, const MDP& mdp){
-  uint x, a, X=mdp.Px.N, A=mdp.Pxax.d1;
+void mdp::MDP::maxPolicy(arr& pi, const arr& V) const{
+  uint x, a, X=Px.N, A=Pxax.d1;
   uint amax=0;
   double Qax, Qmax=0.;
   pi.resize(A, X);
   pi.setZero();
   for(x=0; x<X; x++){
     for(a=0; a<A; a++){
-      Qax=Qvalue(a, x, V, mdp);
+      Qax=Qvalue(a, x, V);
       if(!a || Qax>Qmax){ amax=a; Qmax=Qax; }
     }
     pi(amax, x)=1.;
@@ -134,8 +133,8 @@ static bool PQcompare(const uint& a, const uint& b){
   return a<=b;
 }
 
-void mdp::prioritizedSweeping(arr& V, const MDP& mdp, double VerrThreshold){
-  uint x, a, X=mdp.Px.N, A=mdp.Pxax.d1;
+void mdp::MDP::prioritizedSweeping(arr& V, double VerrThreshold){
+  uint x, a, X=Px.N, A=Pxax.d1;
   
   if(V.N!=X){ V.resize(X); V.setZero(); }
   
@@ -155,7 +154,7 @@ void mdp::prioritizedSweeping(arr& V, const MDP& mdp, double VerrThreshold){
   
   //add max reward to the que
   arr Rx;
-  tensorMaxMarginal(Rx, mdp.Rax, TUP(1));
+  tensorMaxMarginal(Rx, Rax, TUP(1));
   x=Rx.argmax();
   Vnew(x)=Rx(x);
   ERR(x) =Vnew(x)-V(x);
@@ -168,11 +167,11 @@ void mdp::prioritizedSweeping(arr& V, const MDP& mdp, double VerrThreshold){
     inQueue(x)=false;
     V(x) += 1. * (Vnew(x) - V(x)); //update towards correct value;
     
-    neighbors=&mdp.neighbors(x);
+    neighbors=&neighbors(x);
     for(j=0; j<neighbors->N; j++){
       y=(*neighbors)(j);
       for(a=0; a<A; a++){
-        Qay=Qvalue(a, y, V, mdp);
+        Qay=Qvalue(a, y, V);
         if(!a || Qay>Vnew(y)) Vnew(y)=Qay;
       }
       if(inQueue(y)){ queue.removeValueInSorted(y, PQcompare); inQueue(y)=false; }

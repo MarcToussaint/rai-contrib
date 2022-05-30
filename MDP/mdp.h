@@ -49,6 +49,14 @@ struct MDP {
   arr Rax;   ///< reward expectation as a function of (action, x_before)
   double gamma; ///< discounting factor
   rai::Array<uintA> neighbors; ///< state neighbor lists (for sparse worlds)
+
+
+  double Qvalue(uint a, uint x, const arr& V) const;
+  void Qfunction(arr& Q, const arr&V) const;
+  void valueIteration(arr& V) const;
+  void policyEvaluation(arr& V, const arr& pi) const;
+  void maxPolicy(arr& pi, const arr& V) const;
+  void prioritizedSweeping(arr& V, double VerrThreshold=1e-4);
 };
 
 /// struct to store a generic structured MDP or POMDP
@@ -207,12 +215,6 @@ void collapseToTransitionMatrix(arr& P0x0x, arr& R0x, arr& S0x, const FSC_lev1& 
 // Dynamic Programming in a standard MDP
 //
 
-double Qvalue(uint a, uint x, const arr&V, const MDP& mdp);
-void Qfunction(arr& Q, const arr&V, const MDP& mdp);
-void valueIteration(arr& V, const MDP& mdp);
-void policyEvaluation(arr& V, const arr& pi, const MDP& mdp);
-void maxPolicy(arr& pi, const arr& V, const MDP& mdp);
-void prioritizedSweeping(arr& V, const MDP& mdp, double VerrThreshold=1e-4);
 
 
 //===========================================================================

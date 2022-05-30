@@ -19,7 +19,7 @@ ptr<GoalSampler::Result> GoalSampler_KOMO::run(double noise){
 #endif
   {
     arr dual;
-    OptConstrained opt(x, dual, p_goal, 2);
+    OptConstrained opt(x, dual, p_goal.ptr());
     opt.run();
   }
 
@@ -27,7 +27,7 @@ ptr<GoalSampler::Result> GoalSampler_KOMO::run(double noise){
   auto r = make_shared<Result>();
   r->qr = p.query(x);
   r->feasible = r->qr->isGoal && r->qr->isFeasible;
-  r->x = x;
+  r->goal = x;
   LOG(0) <<*r->qr;
 
   return r;

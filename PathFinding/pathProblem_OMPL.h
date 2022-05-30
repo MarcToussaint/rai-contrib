@@ -12,10 +12,12 @@
 #include <ompl/geometric/planners/rrt/RRTstar.h>
 #include <ompl/geometric/planners/rrt/InformedRRTstar.h>
 
-#include <ompl/geometric/planners/bitstar/BITstar.h>
+// #include <ompl/geometric/planners/informedtrees/BITstar.h>
 
 #include <ompl/geometric/planners/prm/PRM.h>
 #include <ompl/geometric/planners/prm/PRMstar.h>
+
+// #include <ompl/multilevel/planners/qrrt/QRRT.h>
 
 #include <ompl/geometric/PathGeometric.h>
 #include <ompl/geometric/PathSimplifier.h>
@@ -23,14 +25,14 @@
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
 
-#include "pathProblem.h"
+#include "ConfigurationProblem.h"
 
 struct PathProblem_OMPL : ob::StateValidityChecker {
-  PathProblem& P;
+  ConfigurationProblem& P;
   arr x;
   uint numQueries = 0;
 
-  PathProblem_OMPL(PathProblem& _P, const ob::SpaceInformationPtr& si)
+  PathProblem_OMPL(ConfigurationProblem& _P, const ob::SpaceInformationPtr& si)
     : ob::StateValidityChecker(si),
       P(_P) {}
 
