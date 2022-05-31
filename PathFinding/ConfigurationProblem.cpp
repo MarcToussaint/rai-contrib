@@ -4,10 +4,10 @@
 
 #include "ConfigurationProblem.h"
 
-#define PENETRATION_TOLERANCE .02 //e-2 //1e-1 //1e-3
-
-ConfigurationProblem::ConfigurationProblem(const rai::Configuration& _C, bool _computeCollisions)
-  : C(_C), computeCollisions(_computeCollisions) {
+ConfigurationProblem::ConfigurationProblem(const rai::Configuration& _C, bool _computeCollisions, double _collisionTolerance)
+  : C(_C),
+    computeCollisions(_computeCollisions),
+    collisionTolerance(_collisionTolerance){
 
   q0 = C.getJointState();
   limits = C.getLimits();
@@ -123,7 +123,7 @@ shared_ptr<QueryResult> ConfigurationProblem::query(const arr& x){
   qr->coll_J.reshape(qr->coll_y.N, x.N);
 
   //is feasible?
-  qr->isFeasible = (!qr->coll_y.N || min(qr->coll_y)>=-PENETRATION_TOLERANCE);
+  qr->isFeasible = (!qr->coll_y.N || min(qr->coll_y)>=-collisionTolerance);
 
   //goal features
   N=0;

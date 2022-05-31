@@ -44,13 +44,14 @@ struct ConfigurationProblem {
   int display=0;
   uint evals=0;
   bool computeCollisions;
+  double collisionTolerance;
 
   // ignore collision-pairs
   bool activeOnly = true;
   bool isActuated(const rai::Frame *f);
   std::unordered_map<uint, bool> actuated;
 
-  ConfigurationProblem(const rai::Configuration& _C, bool _computeCollisions=true);
+  ConfigurationProblem(const rai::Configuration& _C, bool _computeCollisions=true, double _collisionTolerance=1e-3);
 
   shared_ptr<GroundedObjective> addObjective(const FeatureSymbol& feat, const StringA& frames, ObjectiveType type, const arr& scale=NoArr, const arr& target=NoArr);
 

@@ -243,7 +243,7 @@ arr PathSmoother_PartialShortcutter::run(){
     bool shortcutFeasible = true;
 
     // check if the new path is feasible (interpolate)
-    for(uint n=0; n<j-i-1; ++n){
+    for(uint n=0; (int)n<j-i-1; ++n){
       const arr dir = ps[n+1] - ps[n];
       for(uint l=0; l<numPoints; ++l){
         arr point = ps[n] + dir * static_cast<double>(1.0*l/numPoints);
@@ -258,7 +258,7 @@ arr PathSmoother_PartialShortcutter::run(){
    
     // check if the new path is shorter
     if(shortcutFeasible && pathLength(p) > pathLength(ps)){
-      for(uint n=1; n<j-i; ++n){
+      for(uint n=1; (int)n<j-i; ++n){
         smoothedPath[i+n] = ps[n];
       }
     }
@@ -319,7 +319,7 @@ arr PathSmoother_Shortcutter::run(){
     }
 
     if(shortcutFeasible && pathLength(p) > length(p2 - p1)){
-      for(uint n=1; n<j-i; ++n){
+      for(uint n=1; (int)n<j-i; ++n){
         smoothedPath[i+n] = p1 + dir * static_cast<double>(1.0*n/(j-i));
       }
     }

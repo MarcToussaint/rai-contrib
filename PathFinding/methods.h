@@ -21,7 +21,7 @@ struct PathResult{
 
   PathResult() {}
   PathResult(bool infeasible) : feasible(0) { CHECK(infeasible==false, ""); }
-  PathResult(const arr& _path) : feasible(1), path(_path) { if(!path.N) feasible=0; }
+  PathResult(const arr& _path) : path(_path), feasible(1) { if(!path.N) feasible=0; }
 
   void write(ostream& os) const{
     if(path.N) os <<" path-dim:" <<path.dim();
