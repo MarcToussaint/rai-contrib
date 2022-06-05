@@ -40,6 +40,7 @@ struct ConfigurationProblem {
   rai::Configuration C;
   arr q0, limits, max_step;
   rai::Array<shared_ptr<GroundedObjective>> objectives;
+  StringA collisionPairs;
 
   int display=0;
   uint evals=0;
@@ -54,6 +55,7 @@ struct ConfigurationProblem {
   ConfigurationProblem(const rai::Configuration& _C, bool _computeCollisions=true, double _collisionTolerance=1e-3);
 
   shared_ptr<GroundedObjective> addObjective(const FeatureSymbol& feat, const StringA& frames, ObjectiveType type, const arr& scale=NoArr, const arr& target=NoArr);
+  void setExplicitCollisionPairs(const StringA& _collisionPairs);
 
   shared_ptr<QueryResult> query(const arr& x);
 

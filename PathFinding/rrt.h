@@ -56,7 +56,7 @@ struct PathFinder_RRT : PathFinder {
   uint n_backStep=0, n_backStepGood=0, n_sideStep=0, n_sideStepGood=0, n_forwardStep=0, n_forwardStepGood=0, n_rndStep=0, n_rndStepGood=0;
 
 
-  PathFinder_RRT(ConfigurationProblem& _P, const arr& starts, const arr& goals, double _stepsize = .2, uint _verbose=0, bool _intermediateCheck=false) : PathFinder(_P, starts, goals), stepsize(_stepsize), verbose(_verbose), intermediateCheck(_intermediateCheck) {}
+  PathFinder_RRT(ConfigurationProblem& _P, const arr& starts, const arr& goals, double _stepsize = .2, uint _verbose=0, bool _intermediateCheck=false);
 
   void planForward(const arr& q0, const arr& qT);
   arr planConnect(const arr& q0, const arr& qT, double p_forwardStep=.5, double p_sideStep=.0, double p_backwardStep=.0); //default numbers: equivalent to standard bidirect

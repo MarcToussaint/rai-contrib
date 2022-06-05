@@ -6,6 +6,7 @@
 #include <chrono>
 
 RRT_SingleTree::RRT_SingleTree(const arr& q0, const ptr<QueryResult>& q0_qr){
+  if(!q0_qr->isFeasible) LOG(0) <<"rooting RRT with infeasible start configuration -- that's likely to fail: query is:\n" <<*q0_qr;
   add(q0, 0, q0_qr);
 }
 
@@ -174,6 +175,13 @@ bool PathFinder_RRT::growTreeToTree(RRT_SingleTree& rrt_A, RRT_SingleTree& rrt_B
 
 //===========================================================================
 
+PathFinder_RRT::PathFinder_RRT(ConfigurationProblem& _P, const arr& starts, const arr& goals, double _stepsize, uint _verbose, bool _intermediateCheck)
+  : PathFinder(_P, starts, goals),
+    stepsize(_stepsize),
+    verbose(_verbose),
+    intermediateCheck(_intermediateCheck) {
+}
+
 void PathFinder_RRT::planForward(const arr& q0, const arr& qT){
   DISP.clear();
   DISP.copy(P.C);
@@ -207,7 +215,7 @@ void PathFinder_RRT::planForward(const arr& q0, const arr& qT){
   if(!success) return;
 
   if (verbose > 0){
-    std::cout <<"\nSUCCESS!"
+    std::cout <<"SUCCESS!"
               <<"\n  tested samples=" <<2*i
               <<"\n  #tree-size=" <<rrt.getNumberNodes()
      << std::endl;
@@ -233,11 +241,14 @@ void PathFinder_RRT::planForward(const arr& q0, const arr& qT){
 }
 
 arr PathFinder_RRT::planConnect(const arr& q0, const arr& qT, double p_forwardStep, double p_sideStep, double p_backwardStep){
+  auto q0ret = P.query(q0);
+  auto qTret = P.query(qT);
+  if(!q0ret->isFeasible){ if(verbose>0) LOG(0) <<"initializing with infeasible q0"; if(verbose>1) q0ret->writeDetails(cout, P); return {}; }
+  if(!qTret->isFeasible){ if(verbose>0) LOG(0) <<"initializing with infeasible qT"; if(verbose>1) qTret->writeDetails(cout, P); return {}; }
+  RRT_SingleTree rrt0(q0, q0ret);
+  RRT_SingleTree rrtT(qT, qTret);
 
-  RRT_SingleTree rrt0(q0, P.query(q0));
-  RRT_SingleTree rrtT(qT, P.query(qT));
-
-  if(verbose>1){
+  if(verbose>2){
     DISP.clear();
     DISP.copy(P.C);
     DISP.gl()->add(rrt0);
@@ -255,7 +266,7 @@ arr PathFinder_RRT::planConnect(const arr& q0, const arr& qT, double p_forwardSt
     if(success) break;
 
     //some output
-    if (verbose > 2){
+    if(verbose>2){
       if(!(i%100)){
         DISP.setJointState(rrt0.getLast());
         DISP.watch(verbose>4, STRING("planConnect it " <<i));
@@ -264,7 +275,7 @@ arr PathFinder_RRT::planConnect(const arr& q0, const arr& qT, double p_forwardSt
     }
   }
 
-  if (verbose > 0){
+  if(verbose>0){
     if(success)
       cout <<"\nSUCCESS!" <<endl;
     else
@@ -286,18 +297,18 @@ arr PathFinder_RRT::planConnect(const arr& q0, const arr& qT, double p_forwardSt
   path.append(pathT);
 
   //display
-  if (verbose > 1){
+  if(verbose>1){
     cout <<"  path-length=" <<path.d0 <<endl;
-    DISP.proxies.clear();
-    if(verbose>2) DISP.watch(true);
-    rai::wait(.2);
-    for(uint t=0;t<path.d0;t++){
-      DISP.setJointState(path[t]);
-      DISP.watch();
-      rai::wait(.2);
+    if(verbose>2){
+      DISP.proxies.clear();
+      for(uint t=0;t<path.d0;t++){
+        DISP.setJointState(path[t]);
+        DISP.watch(false, STRING("rrt result "<<t));
+        rai::wait(.1);
+      }
+      DISP.watch(true);
+      DISP.clear();
     }
-
-    DISP.clear();
   }
 
   path >>FILE("z.path");

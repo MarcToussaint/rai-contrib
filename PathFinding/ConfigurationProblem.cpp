@@ -32,6 +32,11 @@ shared_ptr<GroundedObjective> ConfigurationProblem::addObjective(const FeatureSy
   return ob;
 }
 
+void ConfigurationProblem::setExplicitCollisionPairs(const StringA& _collisionPairs){
+  computeCollisions = false;
+  collisionPairs = _collisionPairs;
+}
+
 bool ConfigurationProblem::isActuated(const rai::Frame *f){
   if(actuated.count(f->ID) > 0){
     return actuated[f->ID];
@@ -66,6 +71,14 @@ shared_ptr<QueryResult> ConfigurationProblem::query(const arr& x){
     //C.stepSwift();
     C.stepFcl();
     for(rai::Proxy& p:C.proxies) p.ensure_coll();
+  }else if(collisionPairs.N){
+    C.proxies.resize(collisionPairs.d0);
+    for(uint i=0;i<collisionPairs.d0;i++){
+      C.proxies(i).a = C.getFrame(collisionPairs(i,0));
+      C.proxies(i).b = C.getFrame(collisionPairs(i,1));
+      C.proxies(i).d = -0.;
+    }
+    for(rai::Proxy& p:C.proxies) p.calc_coll();
   }
   evals++;
 
@@ -75,12 +88,12 @@ shared_ptr<QueryResult> ConfigurationProblem::query(const arr& x){
 
   //collision features
   uint N = C.proxies.N;
-  qr->collisions.resize(N, 2);
-  qr->coll_y.resize(N, 1);
-  qr->coll_J.resize(N, 1, x.N);
-  qr->normal_y.resize(N, 3);
-  qr->normal_J.resize(N, 3, x.N);
-  qr->side_J.resize(N, 3, x.N);
+  qr->collisions.resize(N, 2).setZero();
+  qr->coll_y.resize(N, 1).setZero();
+  qr->coll_J.resize(N, 1, x.N).setZero();
+  qr->normal_y.resize(N, 3).setZero();
+  qr->normal_J.resize(N, 3, x.N).setZero();
+  qr->side_J.resize(N, 3, x.N).setZero();
 
   uint i=0;
   for(const rai::Proxy& p:C.proxies){
