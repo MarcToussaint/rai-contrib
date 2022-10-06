@@ -56,7 +56,7 @@ struct MDP {
   void valueIteration(arr& V) const;
   void policyEvaluation(arr& V, const arr& pi) const;
   void maxPolicy(arr& pi, const arr& V) const;
-  void prioritizedSweeping(arr& V, double VerrThreshold=1e-4);
+  void prioritizedSweeping(arr& V, double VerrThreshold=1e-4) const;
 };
 
 /// struct to store a generic structured MDP or POMDP

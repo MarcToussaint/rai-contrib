@@ -133,7 +133,7 @@ static bool PQcompare(const uint& a, const uint& b){
   return a<=b;
 }
 
-void mdp::MDP::prioritizedSweeping(arr& V, double VerrThreshold){
+void mdp::MDP::prioritizedSweeping(arr& V, double VerrThreshold) const{
   uint x, a, X=Px.N, A=Pxax.d1;
   
   if(V.N!=X){ V.resize(X); V.setZero(); }
@@ -141,7 +141,7 @@ void mdp::MDP::prioritizedSweeping(arr& V, double VerrThreshold){
   arr Vnew(X);
   Vnew.setZero();
   
-  uintA *neighbors;
+  uintA *neigh;
   uint j, y;
   double Qay;
   
@@ -167,9 +167,9 @@ void mdp::MDP::prioritizedSweeping(arr& V, double VerrThreshold){
     inQueue(x)=false;
     V(x) += 1. * (Vnew(x) - V(x)); //update towards correct value;
     
-    neighbors=&neighbors(x);
-    for(j=0; j<neighbors->N; j++){
-      y=(*neighbors)(j);
+    neigh=&neighbors(x);
+    for(j=0; j<neigh->N; j++){
+      y=(*neigh)(j);
       for(a=0; a<A; a++){
         Qay=Qvalue(a, y, V);
         if(!a || Qay>Vnew(y)) Vnew(y)=Qay;
@@ -246,7 +246,7 @@ void mdp::mdpEM(const MDP& mdp, arr& pi, arr& hatBeta, uint Tmax, float cutoffTi
   //if(timePriorType()=='w') cutoffTime=timeWindowH+1;
   //if(!prune) forNodes(n, G){ addA(n); addB(n); } addB(to);
   
-  uintA *neighbors;
+  uintA *neigh;
   
   uint t, j;
   arr L(2*Tmax);  L.setZero();
@@ -266,9 +266,9 @@ void mdp::mdpEM(const MDP& mdp, arr& pi, arr& hatBeta, uint Tmax, float cutoffTi
     // BETA bwd propagation
     beta_.setZero();
     for(x=0; x<X; x++){
-      neighbors=&mdp.neighbors(x);
-      for(j=0; j<neighbors->N; j++){
-        y=(*neighbors)(j);
+      neigh=&mdp.neighbors(x);
+      for(j=0; j<neigh->N; j++){
+        y=(*neigh)(j);
         beta_(y) += Pxx_back(y, x) * beta(x);
         //beta_(y) += Pxx(x, y) * beta(x);
         //for(a=0;a<A;a++)  beta_(y) += mdp.Pxax(x, a, y) * pi(a, y) * beta(x);
@@ -281,9 +281,9 @@ void mdp::mdpEM(const MDP& mdp, arr& pi, arr& hatBeta, uint Tmax, float cutoffTi
     // BETA_neutral bwd propagation
     beta_neutral_.setZero();
     for(x=0; x<X; x++){
-      neighbors=&mdp.neighbors(x);
-      for(j=0; j<neighbors->N; j++){
-        y=(*neighbors)(j);
+      neigh=&mdp.neighbors(x);
+      for(j=0; j<neigh->N; j++){
+        y=(*neigh)(j);
         beta_neutral_(y) += Pxx_back(y, x) * beta_neutral(x);
       }
     }
@@ -294,9 +294,9 @@ void mdp::mdpEM(const MDP& mdp, arr& pi, arr& hatBeta, uint Tmax, float cutoffTi
     // ALPHA fwd propagation
     alpha_.setZero();
     for(x=0; x<X; x++){
-      neighbors=&mdp.neighbors(x);
-      for(j=0; j<neighbors->N; j++){
-        y=(*neighbors)(j);
+      neigh=&mdp.neighbors(x);
+      for(j=0; j<neigh->N; j++){
+        y=(*neigh)(j);
         alpha_(y) += Pxx(y, x) * alpha(x);
         //for(a=0;a<A;a++)  alpha_(y) += mdp.Pxax(y, a, x) * pi(a, x) * alpha(x);
       }
@@ -352,9 +352,9 @@ void mdp::mdpEM(const MDP& mdp, arr& pi, arr& hatBeta, uint Tmax, float cutoffTi
   Xax.setZero();
   
   for(x=0; x<X; x++) for(a=0; a<A; a++){
-      neighbors=&mdp.neighbors(x);
-      for(j=0; j<neighbors->N; j++){
-        y=(*neighbors)(j);
+      neigh=&mdp.neighbors(x);
+      for(j=0; j<neigh->N; j++){
+        y=(*neigh)(j);
         Xax(a, x) += mdp.Pxax(y, a, x) * hat_beta(y);
       }
     }

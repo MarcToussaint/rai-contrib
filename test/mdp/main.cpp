@@ -146,8 +146,8 @@ void testSolvers(uint method, const mdp::MDP& mdp, MDP_Parameters& PARAMS){
   case ValueIteration:
     cout <<"*** value iteration" <<endl;
     for(i=0;i<PARAMS.iterations;i++){
-      valueIteration(V,mdp);
-      maxPolicy(pi,V,mdp);
+      mdp.valueIteration(V);
+      mdp.maxPolicy(pi,V);
       cout <<"\r #" <<std::setw(3) <<i <<" V(x_0)=" <<scalarProduct(mdp.Px,V) <<std::flush;
       if(i<50 || !(i%10)) plotPolicyAndValue(pi,V,mdp,i<100);
     }
@@ -157,8 +157,8 @@ void testSolvers(uint method, const mdp::MDP& mdp, MDP_Parameters& PARAMS){
   case PrioritizedSweeping:
     cout <<"*** prioritized sweeping" <<endl;
     V.setZero();
-    prioritizedSweeping(V,mdp);
-    maxPolicy(pi,V,mdp);
+    mdp.prioritizedSweeping(V);
+    mdp.maxPolicy(pi,V);
     plotPolicyAndValue(pi,V,mdp,true);
     break;
   case PolicyIteration:
@@ -166,8 +166,8 @@ void testSolvers(uint method, const mdp::MDP& mdp, MDP_Parameters& PARAMS){
     randomPolicy(pi,mdp);
     V.setZero();
     for(i=0;i<PARAMS.iterations/10;i++){
-      for(j=0;j<10;j++) policyEvaluation(V,pi,mdp);
-      maxPolicy(pi,V,mdp);
+      for(j=0;j<10;j++) mdp.policyEvaluation(V,pi);
+      mdp.maxPolicy(pi,V);
       cout <<"\r #" <<std::setw(3) <<i <<" V(x_0)=" <<scalarProduct(mdp.Px,V) <<std::flush;
       if(i<10) plotPolicyAndValue(pi,V,mdp,i<100);
     }
