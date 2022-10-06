@@ -1,9 +1,7 @@
 #include "rrt.h"
 
 #include <GL/gl.h>
-#include <Kin/viewer.h>
-
-#include <chrono>
+#include <Gui/opengl.h>
 
 RRT_SingleTree::RRT_SingleTree(const arr& q0, const ptr<QueryResult>& q0_qr){
   if(!q0_qr->isFeasible) LOG(0) <<"rooting RRT with infeasible start configuration -- that's likely to fail: query is:\n" <<*q0_qr;
@@ -175,8 +173,10 @@ bool PathFinder_RRT::growTreeToTree(RRT_SingleTree& rrt_A, RRT_SingleTree& rrt_B
 
 //===========================================================================
 
-PathFinder_RRT::PathFinder_RRT(ConfigurationProblem& _P, const arr& starts, const arr& goals, double _stepsize, uint _verbose, bool _intermediateCheck)
-  : PathFinder(_P, starts, goals),
+PathFinder_RRT::PathFinder_RRT(ConfigurationProblem& _P, const arr& _starts, const arr& _goals, double _stepsize, uint _verbose, bool _intermediateCheck)
+  : P(_P),
+    starts(_starts),
+    goals(_goals),
     stepsize(_stepsize),
     verbose(_verbose),
     intermediateCheck(_intermediateCheck) {

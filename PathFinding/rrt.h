@@ -1,13 +1,9 @@
-#include <stdlib.h>
-#include <Algo/ann.h>
-#include <Kin/kin.h>
-#include <Kin/proxy.h>
-#include <Gui/opengl.h>
-#include <Kin/frame.h>
+#pragma once
 
 #include "ConfigurationProblem.h"
-
 #include "methods.h"
+
+#include <Algo/ann.h>
 
 /// just a data structure, no algorithms
 struct RRT_SingleTree : GLDrawer {
