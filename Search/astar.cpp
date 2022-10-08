@@ -18,13 +18,13 @@ bool rai::AStar::step() {
 
     bool complete = node->compute();
     if(!complete){
-        if(node->isFailure()) return false;
+        if(!node->isFeasible) return false;
         queue.add(node->f_prio, node, true);
         return false;
     }
 
     //goal check
-    if(node->isTerminal()){
+    if(node->isTerminal){
         solutions.append(node);
         return true;
     }
@@ -37,7 +37,7 @@ bool rai::AStar::step() {
         NodeP child = node->transition(i);
         mem.append(child);
         child->compute();
-        if(node->isFailure()) return false;
+        if(!node->isFeasible) return false;
         queue.add(child->f_prio, child.get(), true);
     }
     return false;

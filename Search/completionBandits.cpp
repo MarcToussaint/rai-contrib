@@ -44,22 +44,21 @@ void UILE_Solver::query(CB_Node *n){
 
   if(!n->comp->isComplete){ //incomplete
 
-    double c = n->comp->compute();
+    double c = n->comp->timedCompute();
 //    n->comp->isComplete = n->isComplete();
-    n->c += c;
     c_total += c;
     n->parent->c_children++;
 //    n->comp_n += c;
 //    n->parent->comp_n += c;
 
     if(n->comp->isComplete){
-      if(n->l<0.) n->l = n->comp->costHeuristic();
-      if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> complete with c=" <<n->c <<" l=" <<n->l;
-      CHECK_GE(n->l, 0., "lower bound was not computed");
+      if(n->comp->l<0.) n->comp->l = n->comp->costHeuristic();
+      if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> complete with c=" <<n->comp->c <<" l=" <<n->comp->l;
+      CHECK_GE(n->comp->l, 0., "lower bound was not computed");
       if(n->comp->isTerminal) terminals.append(n);
       else nonTerminals.append(n);
     }else{
-      if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> still incomplete with c=" <<n->c;
+      if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> still incomplete with c=" <<n->comp->c;
     }
 
     //backup compute costs
@@ -113,16 +112,21 @@ void UILE_Solver::runTrivial(uint k, double maxEffortPerCompute){
     steps++;
 
     if(n->comp->isComplete){
-      if(n->comp->isTerminal) n=&root;
-      else n=select_computeChild(n);
+      if(n->comp->l>=1e10){
+        if(verbose>0) LOG(0) <<"compute " <<n->ID <<'_' <<n->comp->name <<" -> *** infeasible with c=" <<n->comp->c;
+        n=&root;
+      }else{
+        if(n->comp->isTerminal) n=&root;
+        else n=select_computeChild(n);
+      }
     }else{
-      if(n->c > maxEffortPerCompute){
-        if(verbose>0) LOG(0) <<"compute " <<n->ID <<'_' <<n->comp->name <<" -> *** aborted with c=" <<n->c;
+      if(n->comp->c > maxEffortPerCompute){
+        if(verbose>0) LOG(0) <<"compute " <<n->ID <<'_' <<n->comp->name <<" -> *** aborted with c=" <<n->comp->c;
         n=&root;
       }
     }
 
-    printTree(cout, root); rai::wait();
+    if(n==&root){ printTree(cout, root); rai::wait(); }
   }
 }
 
@@ -227,7 +231,7 @@ CB_Node* UILE_Solver::select_compParent_IE(){
     }
     //lowest compute of children
     double LE=get_novelThreshold(n);
-    for(auto& ch:n->children) LE += 1. + costCoeff*ch->c;// + ch->effortHeuristic();
+    for(auto& ch:n->children) LE += 1. + costCoeff*ch->comp->c;// + ch->effortHeuristic();
     LE /= double(1+n->children.N);
     n->eff = LE;
     alpha(i++) = (n->mean_ucb - y_baseline) / LE;
@@ -289,7 +293,7 @@ CB_Node* UILE_Solver::select_compParent_Tree(){
 
 CB_Node* UILE_Solver::getCheapestIncompleteChild(CB_Node *r){
   CB_Node* m=0;
-  for(auto& ch:r->children) if(!ch->comp->isComplete && (!m || ch->c < m->c)) m=ch.get();
+  for(auto& ch:r->children) if(!ch->comp->isComplete && (!m || ch->comp->c < m->comp->c)) m=ch.get();
   return m;
 }
 
@@ -304,7 +308,7 @@ CB_Node* UILE_Solver::select_computeChild(CB_Node *r){
   CB_Node* j = getCheapestIncompleteChild(r);
 
   if(r->comp->getNumDecisions()<0 || (int)r->R < r->comp->getNumDecisions()){
-    if(!j || j->c>get_novelThreshold(r)){ //not good enough -> create a new child
+    if(!j || j->comp->c>get_novelThreshold(r)){ //not good enough -> create a new child
       r->children.append(make_shared<CB_Node>(r, r->comp->getNewChild(r->R)));
       j = r->children(-1).get();
       r->R++;
@@ -397,9 +401,9 @@ void printTree(std::ostream& os, CB_Node& root){
     if(n->parent) par.append(G.elem(n->parent->ID));
     rai::Graph& sub = G.newSubgraph(n->comp->name, par, {});
 
-    sub.newNode<double>("c", {}, n->c);
+    sub.newNode<double>("c", {}, n->comp->c);
 //    sub.newNode<double>("c_children", {}, n->c_children);
-    sub.newNode<double>("l", {}, n->l);
+    sub.newNode<double>("l", {}, n->comp->l);
 //    sub.newNode<double>("R", {}, n->R);
     sub.newNode<double>("D_n", {}, n->data_n);
     sub.newNode<double>("D_mean", {}, n->data_Y/n->data_n);
@@ -418,7 +422,7 @@ void printTree(std::ostream& os, CB_Node& root){
   }
 
   G.checkConsistency();
-  cout <<G <<endl;
+  G.write(FILE("z.tree"));
   G.writeDot(FILE("z.dot"));
   rai::system("dot -Tpdf z.dot > z.pdf");
 }

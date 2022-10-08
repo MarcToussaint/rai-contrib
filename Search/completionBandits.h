@@ -13,8 +13,6 @@ struct CB_Node {
   shared_ptr<rai::ComputeNode> comp;
 
   bool isClosed=false; //all possible children are complete
-  double c=0.;     //cost invested into completion of THIS node
-  double l=-1.;    //lower bound computed at completion
   uint R=0;        //#children
   uint c_children=0; //#compute invested in childrent \sum_i:ch ch->c
   uint n_children=0; //#complete children
