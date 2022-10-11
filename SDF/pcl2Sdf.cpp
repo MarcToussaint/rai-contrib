@@ -62,15 +62,37 @@ void PclSdf::getCartesianBoundingBox(const arr& fxypxy){
         corners(i, l) = ((i & (1<<l)) ? pixSdf.up(l):pixSdf.lo(l));
     }
     for(uint i=0;i<8;i++) depthData2point(&corners(i,0), fxypxy.p);
+#if 1 //outer
     carSdf.lo = min(corners, 0);
     carSdf.up = max(corners, 0);
+#else //inner
+    corners = ~corners;
+//    cout <<pixSdf.lo <<endl <<pixSdf.up <<endl <<corners <<endl;
+    corners[0].sort();
+    corners[1].sort();
+    corners[2].sort();
+    carSdf.lo = corners.col(3);
+    carSdf.up = corners.col(4);
+//    cout <<carSdf.lo <<endl <<carSdf.up <<endl <<corners <<endl;
+#endif
 }
 
-void PclSdf::resampleCartesianSdf(const arr& fxypxy, uint resolution){
+void PclSdf::resampleCartesianSdf(const arr& fxypxy, uint resolution, double pixscale){
     uint N = resolution;
     arr X = grid(carSdf.lo, carSdf.up, {N,N,N}); //grid in cam coord
     for(uint i=0;i<X.d0;i++) point2depthData(&X(i,0), fxypxy.p);
+    if(pixscale>0.){
+        for(uint i=0;i<X.d0;i++){ X(i,0)*= pixscale; X(i,1)*= pixscale; }
+        pixSdf.lo(0) *= pixscale; pixSdf.lo(1) *= pixscale;
+        pixSdf.up(0) *= pixscale; pixSdf.up(1) *= pixscale;
+    }
+
     carSdf.gridData = rai::convert<float>(pixSdf.eval(X)).reshape(N+1,N+1,N+1);
+
+    if(pixscale>0.){
+        pixSdf.lo(0) /= pixscale; pixSdf.lo(1) /= pixscale;
+        pixSdf.up(0) /= pixscale; pixSdf.up(1) /= pixscale;
+   }
 }
 
 bool updateVertex(SDF_GridData& sdf, const std::array<int,3>& p, const rai::Array<std::array<int,3>>& neighbors, const arr& dists){

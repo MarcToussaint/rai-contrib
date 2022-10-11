@@ -2,7 +2,7 @@ BASE = ../../rai
 NAME   = $(shell basename `pwd`)
 OUTPUT = lib$(NAME).so
 
-OPTIM=fast
+OPTIM = fast_debug
 DEPEND = Core Algo Kin Gui Geo
 
 SRCS = $(shell find . -maxdepth 1 -name '*.cpp' )

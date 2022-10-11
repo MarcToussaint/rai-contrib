@@ -14,7 +14,7 @@ struct PclSdf{
 
   void getCartesianBoundingBox(const arr& fxypxy);
 
-  void resampleCartesianSdf(const arr& fxypxy, uint resolution);
+  void resampleCartesianSdf(const arr& fxypxy, uint resolution, double pixScale);
 };
 
 
