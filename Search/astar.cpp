@@ -49,8 +49,10 @@ void rai::AStar::run() {
         //      report();
         iters++;
     }
-    LOG(0) <<"==== DONE ===";
-    report();
+    if(verbose>0){
+      LOG(0) <<"==== DONE ===";
+      report();
+    }
 }
 
 void rai::AStar::report(){

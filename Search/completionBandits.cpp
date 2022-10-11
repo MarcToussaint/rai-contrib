@@ -46,6 +46,7 @@ void UILE_Solver::query(CB_Node *n){
 
     double c = n->comp->timedCompute();
 //    n->comp->isComplete = n->isComplete();
+    n->comp_n += 1.;
     c_total += c;
     n->parent->c_children++;
 //    n->comp_n += c;
@@ -56,7 +57,12 @@ void UILE_Solver::query(CB_Node *n){
       if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> complete with c=" <<n->comp->c <<" l=" <<n->comp->l;
       CHECK_GE(n->comp->l, 0., "lower bound was not computed");
       if(n->comp->isTerminal) terminals.append(n);
-      else nonTerminals.append(n);
+      else if(n->comp->l<1e10){
+        nonTerminals.append(n);
+      }else{
+        n->childrenComplete = true;
+        n->branchComplete = true;
+      }
     }else{
       if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> still incomplete with c=" <<n->comp->c;
     }
@@ -64,20 +70,32 @@ void UILE_Solver::query(CB_Node *n){
     //backup compute costs
     CB_Node* p=n->parent;
     while(p){
-      p->comp_C += c;
-      if(n->comp->isComplete && n->comp->isTerminal) p->comp_n += 1.;
+      p->c_tot += c;
+      if(n->comp->isComplete && n->comp->isTerminal) p->c_num += 1.; //count only terminals?? ok
       p=p->parent;
     }
 
+    //backup completeness
+    if(n->comp->isComplete){
+      CB_Node* p=n->parent;
+      bool allComplete=true;
+      if(p->comp->getNumDecisions()<0 || (int)p->R<p->comp->getNumDecisions()){
+        allComplete=false; //not all possible children expanded
+      }else{
+        for(auto& ch:p->children) if(!ch->comp->isComplete){ allComplete=false; break; }//not all children closed
+      }
+      if(allComplete) p->childrenComplete=true;
+    }
+
     //backup closedness
-    if(n->comp->isComplete && n->comp->isTerminal){
-      n->isClosed=true;
+    if(n->comp->isComplete && n->comp->isTerminal) n->branchComplete=true;
+    if(n->branchComplete){
       CB_Node* p=n->parent;
       while(p){
         if(p->comp->getNumDecisions()<0 || (int)p->R<p->comp->getNumDecisions()) break; //not all possible children expanded
-        for(auto& ch:p->children) if(!ch->isClosed){ p=0; break; }//not all children closed
+        for(auto& ch:p->children) if(!ch->branchComplete){ p=0; break; }//not all children closed
         if(!p) break;
-        p->isClosed=true;
+        p->branchComplete=true;
         p=p->parent;
       }
     }
@@ -96,8 +114,8 @@ void UILE_Solver::query(CB_Node *n){
     if(verbose>0) LOG(0) <<"sampled " <<n->ID <<'_' <<n->comp->name <<" -> return " <<y;
 
     while(n){
-      n->data_Y += y;
-      n->data_n += 1.;
+      n->y_tot += y;
+      n->y_num += 1.;
       n=n->parent;
     }
   }
@@ -126,7 +144,7 @@ void UILE_Solver::runTrivial(uint k, double maxEffortPerCompute){
       }
     }
 
-    if(n==&root){ printTree(cout, root); rai::wait(); }
+//    if(n==&root){ printTree(cout, root); rai::wait(); }
   }
 }
 
@@ -138,7 +156,7 @@ void UILE_Solver::backupMeans(){
   }
   //standard backup from all terminals
   for(CB_Node* n:terminals){
-    double y = n->data_Y/n->data_n; //->ucb; OPTION!
+    double y = n->y_tot/n->y_num; //->ucb; OPTION!
 //    if(useUCBasData) y = n->ucb;
     n=n->parent;
     while(n){
@@ -156,14 +174,14 @@ CB_Node* UILE_Solver::select_terminalFlat(){
   arr score(terminals.N);
   uint i=0;
   for(CB_Node* n:terminals){
-    if(n->data_n>0.){
+    if(n->y_num>0.){
 //      double parent_num=0;
-//      for(auto& ch: n->parent->children) parent_num += ch->data_n;
-      n->data_ucb = n->data_Y/n->data_n + beta * ::sqrt(2.*::log(root.data_n) / n->data_n);
+//      for(auto& ch: n->parent->children) parent_num += ch->y_num;
+      n->y_ucb = n->y_tot/n->y_num + beta * ::sqrt(2.*::log(root.y_num) / n->y_num);
     }else{
-      n->data_ucb = double(1<<10);
+      n->y_ucb = double(1<<10);
     }
-    score(i++) = n->data_ucb;
+    score(i++) = n->y_ucb;
   }
   if(verbose>0) LOG(0) <<"terminal's data scores: " <<score;
 
@@ -180,12 +198,12 @@ CB_Node* UILE_Solver::select_terminalUCT(){
     arr alpha(n->children.N);
     uint i=0;
     for(auto& n:n->children){
-      if(n->data_n>0.){
-        n->data_ucb = n->data_Y/n->data_n + beta * ::sqrt(2.*::log(n->parent->data_n) / n->data_n);
+      if(n->y_num>0.){
+        n->y_ucb = n->y_tot/n->y_num + beta * ::sqrt(2.*::log(n->parent->y_num) / n->y_num);
       }else{
-        n->data_ucb = -1.;
+        n->y_ucb = -1.;
       }
-      alpha(i++) = n->data_ucb;
+      alpha(i++) = n->y_ucb;
     }
 
     // pick the child with highest
@@ -214,7 +232,7 @@ CB_Node* UILE_Solver::select_compParent_IE(){
   uint i=0;
   //pick non-terminal node with highest UCB1 (could be in the middle!!), or with highest UI/LE
   for(CB_Node* n:nonTerminals){
-    if(n->n_children && n->data_n>0.){
+    if(n->n_children && n->y_num>0.){
 #if 0
       double parent_num=0;
       if(n->parent){
@@ -224,7 +242,7 @@ CB_Node* UILE_Solver::select_compParent_IE(){
       }
       n->mean_ucb = n->mean_Y/n->mean_n + beta * ::sqrt(2.*::log(parent_num) / n->c_children);
 #else
-      n->mean_ucb = n->data_Y/n->data_n + beta * ::sqrt(2.*::log(nTotal) / n->n_children);
+      n->mean_ucb = n->y_tot/n->y_num + beta * ::sqrt(2.*::log(nTotal) / n->n_children);
 #endif
     }else{
       n->mean_ucb = double(1<<10);
@@ -251,7 +269,7 @@ CB_Node* UILE_Solver::select_compParent_CR(){
   CB_Node* m=0;
   double mScore=0.;
   for(CB_Node* n:nonTerminals){
-//    double score = sqrt(n->comp_C)*sqrt(n->R);
+//    double score = sqrt(n->c_tot)*sqrt(n->R);
     double score = n->R;
     if(!m || score<mScore){ m=n; mScore=score; }
   }
@@ -268,21 +286,21 @@ CB_Node* UILE_Solver::select_compParent_Tree(){
   //-- select terminal node using tree policy
   CB_Node* n = &root;
   CB_Node* best = 0;
-  if(nonTerminals.contains(n)) best=n;
+  if(!n->childrenComplete/*nonTerminals.contains(n)*/) best=n;
   while(!n->comp->isTerminal){
-    //for all children with data compute UCB1 score
+    //for all non-closed children compute score
     CB_Node* m=0;
     double mScore=0.;
     for(auto& ch:n->children){
-      if(ch->isClosed) continue;
-      double score = ch->comp_C;
+      if(ch->branchComplete) continue;
+      double score = ch->c_tot;
       if(!m || score<mScore){ m=ch.get(); mScore=score; }
     }
 
     if(!m) break; //all children closed
     if(!m->comp->isComplete) break; //m itself (as compParent) needs to be complete
 
-    if(nonTerminals.contains(m)){
+    if(!m->childrenComplete/*nonTerminals.contains(m)*/){
       if(!best || best->R>m->R) best=m;
     }
 
@@ -319,6 +337,7 @@ CB_Node* UILE_Solver::select_computeChild(CB_Node *r){
   if(!j){ //all possible children are complete
     if(verbose>0) LOG(0) <<"all children of r=" <<r->comp->name <<" complete -- removing it from nonTerminals -- selected none";
     nonTerminals.removeValue(r);
+    r->childrenComplete=true;
   }else{
     if(verbose>0) LOG(0) <<"chose j=" <<j->comp->name <<" as cheepest compute child of r=" <<r->comp->name;
   }
@@ -331,8 +350,8 @@ CB_Node* UILE_Solver::select(){
   //-- baseline
 #if 0 //recompute y_max as mean...
   y_max = 0.;
-  for(CB_Node* n:terminals) if(n->data_n){
-    double mean = n->data_Y/n->data_n;
+  for(CB_Node* n:terminals) if(n->y_num){
+    double mean = n->y_tot/n->y_num;
     if(mean>y_max) y_max = mean;
   }
 #else
@@ -344,13 +363,13 @@ CB_Node* UILE_Solver::select(){
   CB_Node *n = select_terminalUCT();
 
   //select and threshold
-  if(n && (n->data_ucb - y_baseline)>root.thetaImprovement) return n;
+  if(n && (n->y_ucb - y_baseline)>root.thetaImprovement) return n;
 
   //-- SELECT NON-TERMINAL
   //backup all these scores down the tree (as in MCTS)
-  CB_Node *r = select_compParent_IE();
+//  CB_Node *r = select_compParent_IE();
 //  CB_Node *r = select_compParent_CR();
-//  CB_Node *r = select_compParent_Tree();
+  CB_Node *r = select_compParent_Tree();
   if(!r) return n;
 
   //-- PICK CHILD OF NON-TERMINAL (OR CREATE NOVEL)
@@ -362,12 +381,12 @@ void UILE_Solver::report(){
   double groundTruthBest=0.;
   for(CB_Node* n:terminals){
 //    double y = n->groundTruthMean();
-    double y = n->data_Y/n->data_n;
+    double y = n->y_tot/n->y_num;
     groundTruthMean += y;
     if(y>groundTruthBest) groundTruthBest=y;
   }
   if(terminals.N) groundTruthMean/= double(terminals.N);
-  if(fil) (*fil) <<steps <<' ' <<totalCost() <<' ' <<y_now <<' ' <<(root.data_n>0.?root.data_Y/root.data_n:0.) <<' ' <<y_baseline <<' ' <<groundTruthMean <<' ' <<groundTruthBest <<' ' <<terminals.N <<' ' <<nonTerminals.N <<endl;
+  if(fil) (*fil) <<steps <<' ' <<totalCost() <<' ' <<y_now <<' ' <<(root.y_num>0.?root.y_tot/root.y_num:0.) <<' ' <<y_baseline <<' ' <<groundTruthMean <<' ' <<groundTruthBest <<' ' <<terminals.N <<' ' <<nonTerminals.N <<endl;
 }
 
 
@@ -402,17 +421,20 @@ void printTree(std::ostream& os, CB_Node& root){
     rai::Graph& sub = G.newSubgraph(n->comp->name, par, {});
 
     sub.newNode<double>("c", {}, n->comp->c);
+    sub.newNode<double>("comp_n", {}, n->comp_n);
 //    sub.newNode<double>("c_children", {}, n->c_children);
     sub.newNode<double>("l", {}, n->comp->l);
 //    sub.newNode<double>("R", {}, n->R);
-    sub.newNode<double>("D_n", {}, n->data_n);
-    sub.newNode<double>("D_mean", {}, n->data_Y/n->data_n);
-    sub.newNode<double>("D_ucb", {}, n->data_ucb);
-    sub.newNode<double>("C_ucb", {}, n->mean_ucb);
-    sub.newNode<double>("C_eff", {}, n->eff);
-    sub.newNode<double>("C_tot", {}, n->comp_C);
-    sub.newNode<double>("C_n", {}, n->comp_n);
-    sub.newNode<bool>("closed", {}, n->isClosed);
+    sub.newNode<double>("y_num", {}, n->y_num);
+    sub.newNode<double>("y_mean", {}, n->y_tot/n->y_num);
+    sub.newNode<double>("y_ucb", {}, n->y_ucb);
+//    sub.newNode<double>("C_ucb", {}, n->mean_ucb);
+//    sub.newNode<double>("C_eff", {}, n->eff);
+    sub.newNode<double>("c_tot", {}, n->c_tot);
+    sub.newNode<double>("c_num", {}, n->c_num);
+    sub.newNode<bool>("cpl", {}, n->comp->isComplete);
+    sub.newNode<bool>("childrenCpl", {}, n->childrenComplete);
+    sub.newNode<bool>("branchCpl", {}, n->branchComplete);
 
 //    if(n->D.N) sub.newNode<arr>("data", {}, n->D);
     if(n->comp->isTerminal){

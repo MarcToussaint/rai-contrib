@@ -10,19 +10,21 @@
 struct CB_Node {
   uint ID=0;
   CB_Node *parent=0;
-  shared_ptr<rai::ComputeNode> comp;
+  std::shared_ptr<rai::ComputeNode> comp;
 
-  bool isClosed=false; //all possible children are complete
+  bool childrenComplete=false; //all possible children are complete
+  bool branchComplete=false; //all possible decsendants are complete
   uint R=0;        //#children
   uint c_children=0; //#compute invested in childrent \sum_i:ch ch->c
   uint n_children=0; //#complete children
   double thetaImprovement=.1; //improvement threshold
+  double comp_n=0.;
 //  arr D;           //data at leafs
 
-  double data_Y=0., data_n=0., data_ucb=0.;
+  double y_tot=0., y_num=0., y_ucb=0.;
   double mean_Y=0., mean_n=0., mean_ucb=0.;
   double eff=0.;
-  double comp_C=0., comp_n=0.;
+  double c_tot=0., c_num=0.;
 
   rai::Array<shared_ptr<CB_Node>> children;
 
@@ -65,7 +67,7 @@ struct UILE_Solver{
 
   void run(uint k){ for(uint i=0;i<k;i++) step(); }
   void step();
-  double totalCost(){ return c_total + epsilon*root.data_n; }
+  double totalCost(){ return c_total + epsilon*root.y_num; }
 
   CB_Node* select();
 
