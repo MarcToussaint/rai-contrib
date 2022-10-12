@@ -15,15 +15,15 @@ namespace rai {
     virtual int getNumDecisions() = 0;
     virtual std::shared_ptr<ComputeNode> getNewChild(uint i) = 0;
 
-    virtual double costHeuristic(){ return 0.; }
+    virtual double valueHeuristic(){ return 0.; }
     virtual double effortHeuristic(){ return 0.; }        //expected effort-to-go (FULL DOWN-STREAM TO LEAF NODE)
+    virtual double correlationHeuristic(){ return .1; }
     virtual double sample(){ HALT("need to overload"); }  //get a value (at a leaf)
 
     virtual double timedCompute(){
       double time = -rai::cpuTime();
       compute();
       time += rai::cpuTime();
-      c += time;
       return time;
     }
     virtual void write(ostream& os) const{ os <<name; }

@@ -24,7 +24,9 @@ struct CB_Node {
   double y_tot=0., y_num=0., y_ucb=0.;
   double mean_Y=0., mean_n=0., mean_ucb=0.;
   double eff=0.;
-  double c_tot=0., c_num=0.;
+  double c_tot=0.;
+  double score=0.;
+  bool isBest=false;
 
   rai::Array<shared_ptr<CB_Node>> children;
 
@@ -41,6 +43,7 @@ stdOutPipe(CB_Node)
 struct UILE_Solver{
   CB_Node& root;
 
+  rai::Array<CB_Node*> all;
   rai::Array<CB_Node*> terminals;
   rai::Array<CB_Node*> nonTerminals;
 
@@ -55,7 +58,6 @@ struct UILE_Solver{
   //variables
   uint steps=0;
   double y_baseline = -1., y_now=-1;
-  double c_total=0.;
 
   //reporting
   shared_ptr<ofstream> fil;
@@ -67,9 +69,10 @@ struct UILE_Solver{
 
   void run(uint k){ for(uint i=0;i<k;i++) step(); }
   void step();
-  double totalCost(){ return c_total + epsilon*root.y_num; }
+  double totalCost(){ return root.c_tot + epsilon*root.y_num; }
 
   CB_Node* select();
+  CB_Node* selectNew();
 
   CB_Node* select_doubleMcts();
 
@@ -82,7 +85,13 @@ struct UILE_Solver{
 
   CB_Node* select_computeChild(CB_Node *r);
   CB_Node* getCheapestIncompleteChild(CB_Node *r);
-  double get_novelThreshold(CB_Node *r);
+  double get_expandThreshold(CB_Node *r);
+
+  void clearScores();
+  CB_Node* getBestCompute();
+  CB_Node* getBestExpand();
+  CB_Node* getBestSample();
+
 
   void runTrivial(uint k, double maxEffortPerCompute=10.);
 

@@ -27,14 +27,8 @@ UILE_Solver::UILE_Solver(CB_Node& _root) : root(_root) {
 
   root.comp->isComplete=true;
   root.comp->isTerminal=false;
+  all.append(&root);
   nonTerminals.append(&root);
-}
-
-void UILE_Solver::step(){
-  y_now=-1.;
-  query(select());
-  report();
-  steps++;
 }
 
 void UILE_Solver::query(CB_Node *n){
@@ -42,26 +36,44 @@ void UILE_Solver::query(CB_Node *n){
 
   if(verbose>0) LOG(0) <<"querying " <<n->ID <<'_' <<n->comp->name;
 
-  if(!n->comp->isComplete){ //incomplete
+  //== complete & non-terminal -> create new child, then query it directly
+  if(n->comp->isComplete && !n->comp->isTerminal){
+    shared_ptr<CB_Node> child = make_shared<CB_Node>(n, n->comp->getNewChild(n->R));
+    n->R++;
+    n->children.append(child);
+    all.append(child.get());
+    if(verbose>0) LOG(0) <<"created new child ID:" <<child->ID <<" of type '" <<rai::niceTypeidName(typeid(*child->comp)) <<"'";
+    query(child.get());
+    return;
+  }
 
-    double c = n->comp->timedCompute();
-//    n->comp->isComplete = n->isComplete();
+  //== incomplete -> compute
+  if(!n->comp->isComplete){
+
+    double time = n->comp->timedCompute();
+    n->comp->c += time;
     n->comp_n += 1.;
-    c_total += c;
     n->parent->c_children++;
-//    n->comp_n += c;
-//    n->parent->comp_n += c;
 
     if(n->comp->isComplete){
-      if(n->comp->l<0.) n->comp->l = n->comp->costHeuristic();
+      if(n->comp->l<0.) n->comp->l = n->comp->valueHeuristic();
       if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> complete with c=" <<n->comp->c <<" l=" <<n->comp->l;
       CHECK_GE(n->comp->l, 0., "lower bound was not computed");
-      if(n->comp->isTerminal) terminals.append(n);
-      else if(n->comp->l<1e10){
-        nonTerminals.append(n);
+      if(n->comp->isTerminal){
+        terminals.append(n);
       }else{
-        n->childrenComplete = true;
-        n->branchComplete = true;
+        if(n->comp->l<1e10){
+          nonTerminals.append(n);
+        }else{
+          n->childrenComplete = true;
+          n->branchComplete = true;
+          CB_Node* p=n;
+          while(p){
+            p->y_tot += -1.;
+            p->y_num += 1.;
+            p=p->parent;
+          }
+        }
       }
     }else{
       if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> still incomplete with c=" <<n->comp->c;
@@ -70,8 +82,7 @@ void UILE_Solver::query(CB_Node *n){
     //backup compute costs
     CB_Node* p=n->parent;
     while(p){
-      p->c_tot += c;
-      if(n->comp->isComplete && n->comp->isTerminal) p->c_num += 1.; //count only terminals?? ok
+      p->c_tot += time;
       p=p->parent;
     }
 
@@ -99,11 +110,9 @@ void UILE_Solver::query(CB_Node *n){
         p=p->parent;
       }
     }
-
-//  }else{ //complete
   }
 
-//  n->isTerminal = n->isTerminal();
+  //== complete & terminal -> sample
   if(n->comp->isComplete && n->comp->isTerminal){
     CHECK(n->comp->isTerminal, "");
 
@@ -119,6 +128,13 @@ void UILE_Solver::query(CB_Node *n){
       n=n->parent;
     }
   }
+}
+
+void UILE_Solver::step(){
+  y_now=-1.;
+  query(selectNew());
+  report();
+  steps++;
 }
 
 void UILE_Solver::runTrivial(uint k, double maxEffortPerCompute){
@@ -248,7 +264,7 @@ CB_Node* UILE_Solver::select_compParent_IE(){
       n->mean_ucb = double(1<<10);
     }
     //lowest compute of children
-    double LE=get_novelThreshold(n);
+    double LE=get_expandThreshold(n);
     for(auto& ch:n->children) LE += 1. + costCoeff*ch->comp->c;// + ch->effortHeuristic();
     LE /= double(1+n->children.N);
     n->eff = LE;
@@ -315,9 +331,41 @@ CB_Node* UILE_Solver::getCheapestIncompleteChild(CB_Node *r){
   return m;
 }
 
-double UILE_Solver::get_novelThreshold(CB_Node *r){
+double UILE_Solver::get_expandThreshold(CB_Node *r){
 //  return gamma*::sqrt(r->c_children);
   return gamma*(r->R);
+}
+
+void UILE_Solver::clearScores() {
+  for(CB_Node *n:all){
+    n->score = -1.;
+    n->isBest = false;
+  }
+}
+
+CB_Node* UILE_Solver::getBestCompute(){
+  CB_Node* best=0;
+  for(CB_Node *n:all){
+    if(!n->comp->isComplete){
+      n->score = 1./( n->comp->c + n->comp->effortHeuristic() );
+      if(!best || n->score>=best->score) best=n;
+    }
+  }
+  if(best) best->isBest=true;
+  return best;
+}
+
+CB_Node* UILE_Solver::getBestExpand(){
+  CB_Node* best=0;
+  for(CB_Node *n:all){
+    int Rmax = n->comp->getNumDecisions();
+    if(n->comp->isComplete && !n->comp->isTerminal && n->comp->l<1e9 && (Rmax<0 || (int)n->R<Rmax)){
+      n->score = 1./( sqrt(n->y_num+1.) * (n->R+1.) * n->comp->correlationHeuristic() ); // * (n->comp->effortHeuristic());
+      if(!best || n->score>=best->score) best=n;
+    }
+  }
+  if(best) best->isBest=true;
+  return best;
 }
 
 
@@ -326,11 +374,12 @@ CB_Node* UILE_Solver::select_computeChild(CB_Node *r){
   CB_Node* j = getCheapestIncompleteChild(r);
 
   if(r->comp->getNumDecisions()<0 || (int)r->R < r->comp->getNumDecisions()){
-    if(!j || j->comp->c>get_novelThreshold(r)){ //not good enough -> create a new child
-      r->children.append(make_shared<CB_Node>(r, r->comp->getNewChild(r->R)));
-      j = r->children(-1).get();
-      r->R++;
-      if(verbose>0) LOG(0) <<"created new child ID:" <<j->ID <<" of type '" <<rai::niceTypeidName(typeid(*j->comp)) <<"'";
+    if(!j || j->comp->c>get_expandThreshold(r)){ //not good enough -> create a new child
+      return r; //r-decision: create new child
+//      r->children.append(make_shared<CB_Node>(r, r->comp->getNewChild(r->R)));
+//      j = r->children(-1).get();
+//      r->R++;
+//      if(verbose>0) LOG(0) <<"created new child ID:" <<j->ID <<" of type '" <<rai::niceTypeidName(typeid(*j->comp)) <<"'";
     }
   }
 
@@ -374,6 +423,18 @@ CB_Node* UILE_Solver::select(){
 
   //-- PICK CHILD OF NON-TERMINAL (OR CREATE NOVEL)
   return select_computeChild(r);
+}
+
+CB_Node* UILE_Solver::selectNew(){
+  clearScores();
+
+  CB_Node *c = getBestCompute();
+  CB_Node *e = getBestExpand();
+
+  if(!c) return e;
+
+  if(c->comp->c < gamma*sqrt(root.c_tot)) return c;
+  return e;
 }
 
 void UILE_Solver::report(){
@@ -420,27 +481,34 @@ void printTree(std::ostream& os, CB_Node& root){
     if(n->parent) par.append(G.elem(n->parent->ID));
     rai::Graph& sub = G.newSubgraph(n->comp->name, par, {});
 
+    sub.newNode<double>("score", {}, n->score);
     sub.newNode<double>("c", {}, n->comp->c);
     sub.newNode<double>("comp_n", {}, n->comp_n);
 //    sub.newNode<double>("c_children", {}, n->c_children);
-    sub.newNode<double>("l", {}, n->comp->l);
+    if(n->comp->l>=0.){
+      sub.newNode<double>("l", {}, n->comp->l);
+    }
 //    sub.newNode<double>("R", {}, n->R);
-    sub.newNode<double>("y_num", {}, n->y_num);
-    sub.newNode<double>("y_mean", {}, n->y_tot/n->y_num);
-    sub.newNode<double>("y_ucb", {}, n->y_ucb);
-//    sub.newNode<double>("C_ucb", {}, n->mean_ucb);
-//    sub.newNode<double>("C_eff", {}, n->eff);
-    sub.newNode<double>("c_tot", {}, n->c_tot);
-    sub.newNode<double>("c_num", {}, n->c_num);
-    sub.newNode<bool>("cpl", {}, n->comp->isComplete);
-    sub.newNode<bool>("childrenCpl", {}, n->childrenComplete);
-    sub.newNode<bool>("branchCpl", {}, n->branchComplete);
+    if(n->comp->l<1e9){
+      if(n->y_num){
+        sub.newNode<double>("y_mean", {}, n->y_tot/n->y_num);
+        sub.newNode<double>("y_num", {}, n->y_num);
+      }
+        //    sub.newNode<double>("y_ucb", {}, n->y_ucb);
+        //    sub.newNode<double>("C_ucb", {}, n->mean_ucb);
+        //    sub.newNode<double>("C_eff", {}, n->eff);
+      if(n->c_tot){
+        sub.newNode<double>("c_tot", {}, n->c_tot);
+      }
+      if(n->comp->isComplete) sub.newNode<bool>("cpl");
+      if(n->childrenComplete) sub.newNode<bool>("childrenCpl");
+      if(n->branchComplete) sub.newNode<bool>("branchCpl");
+    }
 
 //    if(n->D.N) sub.newNode<arr>("data", {}, n->D);
-    if(n->comp->isTerminal){
-//      sub.newNode<rai::String>("dotstyle", {}, ", color=red");
-      G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", shape=box";
-    }
+    if(!n->comp->isComplete) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", shape=box";
+    if(n->comp->isTerminal) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", color=blue";
+    if(n->isBest) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", color=red";
   }
 
   G.checkConsistency();
