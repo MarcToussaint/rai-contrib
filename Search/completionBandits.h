@@ -26,7 +26,7 @@ struct CB_Node {
   double eff=0.;
   double c_tot=0.;
   double score=0.;
-  bool isBest=false;
+  bool isSelected=false, isBest=false;
 
   rai::Array<shared_ptr<CB_Node>> children;
 
@@ -41,7 +41,7 @@ stdOutPipe(CB_Node)
 // solver
 
 struct UILE_Solver{
-  CB_Node& root;
+  CB_Node root;
 
   rai::Array<CB_Node*> all;
   rai::Array<CB_Node*> terminals;
@@ -62,7 +62,7 @@ struct UILE_Solver{
   //reporting
   shared_ptr<ofstream> fil;
 
-  UILE_Solver(CB_Node& _root);
+  UILE_Solver(const shared_ptr<rai::ComputeNode>& _root);
 
   void query(CB_Node *n);
   void report();
@@ -108,4 +108,8 @@ struct UILE_Solver{
 
 double ExpectedImprovement(const arr& y);
 void printTree(ostream& os, CB_Node& root);
-uint getDepth(CB_Node* n);
+template<class T> uint getDepth(T* n){
+  int i=0;
+  while(n->parent){ n=n->parent; i++; }
+  return i;
+}

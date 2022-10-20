@@ -18,7 +18,7 @@ void CB_Node::write(std::ostream& os) const {
 
 //===========================================================================
 
-UILE_Solver::UILE_Solver(CB_Node& _root) : root(_root) {
+UILE_Solver::UILE_Solver(const shared_ptr<rai::ComputeNode>& _root) : root(0, _root) {
   gamma = rai::getParameter<double>("CB/gamma", 1.);
   beta = rai::getParameter<double>("CB/beta", 1.);
   epsilon = rai::getParameter<double>("CB/epsilon", .1);
@@ -34,7 +34,7 @@ UILE_Solver::UILE_Solver(CB_Node& _root) : root(_root) {
 void UILE_Solver::query(CB_Node *n){
   if(!n) return;
 
-  if(verbose>0) LOG(0) <<"querying " <<n->ID <<'_' <<n->comp->name;
+  if(verbose>0) LOG(0) <<"querying #" <<n->ID <<'_' <<n->comp->name;
 
   //== complete & non-terminal -> create new child, then query it directly
   if(n->comp->isComplete && !n->comp->isTerminal){
@@ -57,7 +57,7 @@ void UILE_Solver::query(CB_Node *n){
 
     if(n->comp->isComplete){
       if(n->comp->l<0.) n->comp->l = n->comp->valueHeuristic();
-      if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> complete with c=" <<n->comp->c <<" l=" <<n->comp->l;
+      if(verbose>0) LOG(0) <<"computed #" <<n->ID <<'_' <<n->comp->name <<" -> complete with c=" <<n->comp->c <<" l=" <<n->comp->l;
       CHECK_GE(n->comp->l, 0., "lower bound was not computed");
       if(n->comp->isTerminal){
         terminals.append(n);
@@ -76,7 +76,7 @@ void UILE_Solver::query(CB_Node *n){
         }
       }
     }else{
-      if(verbose>0) LOG(0) <<"computed " <<n->ID <<'_' <<n->comp->name <<" -> still incomplete with c=" <<n->comp->c;
+      if(verbose>0) LOG(0) <<"computed #" <<n->ID <<'_' <<n->comp->name <<" -> still incomplete with c=" <<n->comp->c;
     }
 
     //backup compute costs
@@ -120,7 +120,7 @@ void UILE_Solver::query(CB_Node *n){
 
     if(y_baseline<0. || y>y_baseline) y_baseline=y;
     y_now=y;
-    if(verbose>0) LOG(0) <<"sampled " <<n->ID <<'_' <<n->comp->name <<" -> return " <<y;
+    if(verbose>0) LOG(0) <<"sampled #" <<n->ID <<'_' <<n->comp->name <<" -> return " <<y;
 
     while(n){
       n->y_tot += y;
@@ -132,7 +132,9 @@ void UILE_Solver::query(CB_Node *n){
 
 void UILE_Solver::step(){
   y_now=-1.;
-  query(selectNew());
+  CB_Node *n = selectNew();
+  n->isSelected = true;
+  query(n);
   report();
   steps++;
 }
@@ -147,7 +149,7 @@ void UILE_Solver::runTrivial(uint k, double maxEffortPerCompute){
 
     if(n->comp->isComplete){
       if(n->comp->l>=1e10){
-        if(verbose>0) LOG(0) <<"compute " <<n->ID <<'_' <<n->comp->name <<" -> *** infeasible with c=" <<n->comp->c;
+        if(verbose>0) LOG(0) <<"compute #" <<n->ID <<'_' <<n->comp->name <<" -> *** infeasible with c=" <<n->comp->c;
         n=&root;
       }else{
         if(n->comp->isTerminal) n=&root;
@@ -155,7 +157,7 @@ void UILE_Solver::runTrivial(uint k, double maxEffortPerCompute){
       }
     }else{
       if(n->comp->c > maxEffortPerCompute){
-        if(verbose>0) LOG(0) <<"compute " <<n->ID <<'_' <<n->comp->name <<" -> *** aborted with c=" <<n->comp->c;
+        if(verbose>0) LOG(0) <<"compute #" <<n->ID <<'_' <<n->comp->name <<" -> *** aborted with c=" <<n->comp->c;
         n=&root;
       }
     }
@@ -211,19 +213,19 @@ CB_Node* UILE_Solver::select_terminalUCT(){
   CB_Node* n = &root;
   while(!n->comp->isTerminal){
     //for all children with data compute UCB1 score
-    arr alpha(n->children.N);
-    uint i=0;
+    CB_Node* best=0;
     for(auto& n:n->children){
       if(n->y_num>0.){
         n->y_ucb = n->y_tot/n->y_num + beta * ::sqrt(2.*::log(n->parent->y_num) / n->y_num);
       }else{
         n->y_ucb = -1.;
       }
-      alpha(i++) = n->y_ucb;
+      if(!best || n->y_ucb>=best->y_ucb) best=n.get();
+      if(n->comp->isTerminal) n->score = n->y_ucb - y_baseline;
     }
 
     // pick the child with highest
-    n = n->children(argmax(alpha)).get();
+    n = best;
   }
   return n;
 }
@@ -339,6 +341,7 @@ double UILE_Solver::get_expandThreshold(CB_Node *r){
 void UILE_Solver::clearScores() {
   for(CB_Node *n:all){
     n->score = -1.;
+    n->isSelected = false;
     n->isBest = false;
   }
 }
@@ -428,12 +431,17 @@ CB_Node* UILE_Solver::select(){
 CB_Node* UILE_Solver::selectNew(){
   clearScores();
 
+  //sample?
+  CB_Node *s = select_terminalUCT();
+  //select and threshold
+  if(s && s->score>root.thetaImprovement) return s;
+
+  //compute?
   CB_Node *c = getBestCompute();
+  if(c && c->comp->c < gamma*sqrt(root.c_tot)) return c;
+
+  //expand?
   CB_Node *e = getBestExpand();
-
-  if(!c) return e;
-
-  if(c->comp->c < gamma*sqrt(root.c_tot)) return c;
   return e;
 }
 
@@ -500,15 +508,15 @@ void printTree(std::ostream& os, CB_Node& root){
       if(n->c_tot){
         sub.newNode<double>("c_tot", {}, n->c_tot);
       }
-      if(n->comp->isComplete) sub.newNode<bool>("cpl");
       if(n->childrenComplete) sub.newNode<bool>("childrenCpl");
       if(n->branchComplete) sub.newNode<bool>("branchCpl");
     }
 
 //    if(n->D.N) sub.newNode<arr>("data", {}, n->D);
-    if(!n->comp->isComplete) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", shape=box";
-    if(n->comp->isTerminal) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", color=blue";
-    if(n->isBest) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", color=red";
+    if(!n->comp->isComplete) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", shape=box, style=dashed";
+    else if(n->comp->isTerminal) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", shape=box, style=rounded";
+    if(n->isSelected) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", color=red";
+    else if(n->isBest) G.getRenderingInfo(sub.isNodeOfGraph).dotstyle <<", color=orange";
   }
 
   G.checkConsistency();
@@ -536,11 +544,4 @@ double ExpectedImprovement(const arr& y){
   //  CHECK_GE(EI, 0., "");
 
   return EI;
-}
-
-
-uint getDepth(CB_Node* n){
-  int i=0;
-  while(n->parent){ n=n->parent; i++; }
-  return i;
 }

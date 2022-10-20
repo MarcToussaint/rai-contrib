@@ -11,7 +11,7 @@ namespace rai {
     double c=0.;     //cost invested into completion of THIS node
     double l=-1.;    //lower bound (also feasibility) computed at completion -> f_prio
 
-    virtual void compute() = 0;
+    virtual void compute(){ HALT("need to overload");  }
     virtual int getNumDecisions() = 0;
     virtual std::shared_ptr<ComputeNode> getNewChild(uint i) = 0;
 
