@@ -4,4 +4,4 @@ BASE2 = ../..
 PLIB = 1
 DEPEND = Core Gamepad
 
-include $(BASE)/build/generic.mk
+include $(BASE)/makeutils/generic.mk

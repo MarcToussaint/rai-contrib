@@ -5,6 +5,7 @@
 namespace rai {
 
   struct ComputeNode {
+    uint ID=0;
     rai::String name;
     bool isComplete = false;
     bool isTerminal = false;
@@ -15,9 +16,8 @@ namespace rai {
     virtual int getNumDecisions() = 0;
     virtual std::shared_ptr<ComputeNode> getNewChild(uint i) = 0;
 
-    virtual double valueHeuristic(){ return 0.; }
     virtual double effortHeuristic(){ return 0.; }        //expected effort-to-go (FULL DOWN-STREAM TO LEAF NODE)
-    virtual double correlationHeuristic(){ return .1; }
+    virtual double correlationHeuristic(){ return 1.; }
     virtual double sample(){ HALT("need to overload"); }  //get a value (at a leaf)
 
     virtual double timedCompute(){
@@ -27,6 +27,7 @@ namespace rai {
       return time;
     }
     virtual void write(ostream& os) const{ os <<name; }
+    virtual void store(const char* path) const {}
   };
   stdOutPipe(ComputeNode)
 
