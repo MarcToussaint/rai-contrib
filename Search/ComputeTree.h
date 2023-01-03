@@ -1,14 +1,15 @@
 #pragma once
 
-#include "computeNode.h"
+#include "ComputeNode.h"
 
 #include <Core/array.h>
 
 //===========================================================================
-// problem
+//
+// wrapping the user provided ComputeNode with data for the solver
 
-struct CB_Node {
-  CB_Node *parent=0;
+struct CT_Node {
+  CT_Node *parent=0;
   std::shared_ptr<rai::ComputeNode> comp;
 
   bool childrenComplete=false; //all possible children are complete
@@ -26,42 +27,42 @@ struct CB_Node {
   double score=0.;
   bool isSelected=false, isBest=false;
 
-  rai::Array<shared_ptr<CB_Node>> children;
+  rai::Array<shared_ptr<CT_Node>> children;
 
-  CB_Node(CB_Node* _parent, shared_ptr<rai::ComputeNode> _comp);
+  CT_Node(CT_Node* _parent, shared_ptr<rai::ComputeNode> _comp);
 
   void write(ostream& os) const;
 };
-stdOutPipe(CB_Node)
+stdOutPipe(CT_Node)
 
 
 //===========================================================================
 // solver
 
-struct CBSolverOptions {
+struct ComputeTree_SolverOptions {
   enum SolverMethod { noMethod=0, SCE_Thresholded, SCE_RoundRobin, SCE_IterativeLimited };
 
-  RAI_PARAM_ENUM("CB/", SolverMethod, method1, SCE_Thresholded)
-  RAI_PARAM_ENUM("CB/", SolverMethod, method2, SCE_RoundRobin)
-  RAI_PARAM("CB/", int, verbose, 1)
-  RAI_PARAM("CB/", double, gamma, 1.)
-  RAI_PARAM("CB/", double, beta, 1.)
-  RAI_PARAM("CB/", double, epsilon, .1)
-  RAI_PARAM("CB/", double, theta, .1)
-  RAI_PARAM("CB/", double, rr_sampleFreq, 10.)
-  RAI_PARAM("CB/", double, rr_computeFreq, 3.)
+  RAI_PARAM_ENUM("CT/", SolverMethod, method1, SCE_Thresholded)
+  RAI_PARAM_ENUM("CT/", SolverMethod, method2, SCE_RoundRobin)
+  RAI_PARAM("CT/", int, verbose, 1)
+  RAI_PARAM("CT/", double, gamma, 1.)
+  RAI_PARAM("CT/", double, beta, 1.)
+  RAI_PARAM("CT/", double, epsilon, .1)
+  RAI_PARAM("CT/", double, theta, .1)
+  RAI_PARAM("CT/", double, rr_sampleFreq, 10.)
+  RAI_PARAM("CT/", double, rr_computeFreq, 3.)
 };
 
-struct UILE_Solver{
-  CB_Node root;
+struct ComputeTree_Solver {
+  CT_Node root;
 
-  rai::Array<CB_Node*> all;
-  rai::Array<CB_Node*> terminals;
-  rai::Array<CB_Node*> nonTerminals;
-  rai::Array<CB_Node*> solutions;
+  rai::Array<CT_Node*> all;
+  rai::Array<CT_Node*> terminals;
+  rai::Array<CT_Node*> nonTerminals;
+  rai::Array<CT_Node*> solutions;
 
   //parameter
-  CBSolverOptions opt;
+  ComputeTree_SolverOptions opt;
 
   //variables
   uint steps=0;
@@ -72,7 +73,7 @@ struct UILE_Solver{
   shared_ptr<ofstream> fil;
   uint filLast=0;
 
-  UILE_Solver(const shared_ptr<rai::ComputeNode>& _root);
+  ComputeTree_Solver(const shared_ptr<rai::ComputeNode>& _root);
 
   void step();
   void run(double costLimit){ costLimit += totalCost(); while(totalCost()<costLimit) step(); }
@@ -82,26 +83,26 @@ struct UILE_Solver{
 
 private:
 
-  void query(CB_Node *n);
-  CB_Node* select_Thresholded();
-  CB_Node* select_RoundRobin();
-  CB_Node* selectBestCompute_IterativeLimited();
-  CB_Node* selectBestCompute_RoundRobin();
+  void query(CT_Node *n);
+  CT_Node* select_Thresholded();
+  CT_Node* select_RoundRobin();
+  CT_Node* selectBestCompute_IterativeLimited();
+  CT_Node* selectBestCompute_RoundRobin();
 
   void clearScores();
-  CB_Node* getBestCompute();
-  CB_Node* getBestExpand();
-  CB_Node* getBestSample_Flat();
-  CB_Node* getBestSample_UCT();
+  CT_Node* getBestCompute();
+  CT_Node* getBestExpand();
+  CT_Node* getBestSample_Flat();
+  CT_Node* getBestSample_UCT();
 
-  CB_Node* getCheapestIncompleteChild(CB_Node *r);
+  CT_Node* getCheapestIncompleteChild(CT_Node *r);
 
   //--
   uint rr_sample=0, rr_compute=0, rr_compComp=0, rr_compExp=0;
-  rai::Array<CB_Node*> lifo;
+  rai::Array<CT_Node*> lifo;
   uint limit_R=0;
   double limit_c=1.;
-  rai::Array<CB_Node*> rr_computeFifo;
+  rai::Array<CT_Node*> rr_computeFifo;
 
 
 };
@@ -109,7 +110,7 @@ private:
 //===========================================================================
 // helpers
 
-void printTree(ostream& os, CB_Node& root);
+void printTree(ostream& os, CT_Node& root);
 template<class T> uint getDepth(T* n){
   int i=0;
   while(n->parent){ n=n->parent; i++; }

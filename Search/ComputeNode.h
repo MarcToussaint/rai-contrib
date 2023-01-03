@@ -17,7 +17,7 @@ namespace rai {
     virtual std::shared_ptr<ComputeNode> getNewChild(uint i) = 0;
 
     virtual double effortHeuristic(){ return 0.; }        //expected effort-to-go (FULL DOWN-STREAM TO LEAF NODE)
-    virtual double correlationHeuristic(){ return 1.; }
+    virtual double branchingHeuristic(){ return 1.; }
     virtual double sample(){ HALT("need to overload"); }  //get a value (at a leaf)
 
     virtual double timedCompute(){

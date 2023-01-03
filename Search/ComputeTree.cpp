@@ -1,42 +1,42 @@
-#include "completionBandits.h"
+#include "ComputeTree.h"
 
 #include <math.h>
 #include <Core/util.h>
 #include <Core/graph.h>
 
-static uint CB_Node_ID=0;
+static uint CT_Node_ID=0;
 
-template<> const char* rai::Enum<CBSolverOptions::SolverMethod>::names [] = {
+template<> const char* rai::Enum<ComputeTree_SolverOptions::SolverMethod>::names [] = {
   "noMethod", "SCE_Thresholded", "SCE_RoundRobin", "SCE_IterativeLimited", nullptr };
 
-CB_Node::CB_Node(CB_Node* _parent, shared_ptr<rai::ComputeNode> _comp)
+CT_Node::CT_Node(CT_Node* _parent, shared_ptr<rai::ComputeNode> _comp)
   : parent(_parent), comp(_comp) {
-  comp->ID = CB_Node_ID++;
+  comp->ID = CT_Node_ID++;
   comp->name.prepend(STRING('#' <<comp->ID <<'_'));
 }
 
-void CB_Node::write(std::ostream& os) const {
+void CT_Node::write(std::ostream& os) const {
   os <<comp->name <<" n=" <<c_children <<" R=" <<R;
 //  if(comp->isTerminal) os <<" data: " <<D;
 }
 
 //===========================================================================
 
-UILE_Solver::UILE_Solver(const shared_ptr<rai::ComputeNode>& _root) : root(0, _root) {
+ComputeTree_Solver::ComputeTree_Solver(const shared_ptr<rai::ComputeNode>& _root) : root(0, _root) {
   root.comp->isComplete=true;
   root.comp->isTerminal=false;
   all.append(&root);
   nonTerminals.append(&root);
 }
 
-void UILE_Solver::query(CB_Node *n){
+void ComputeTree_Solver::query(CT_Node *n){
   if(!n) return;
 
   if(opt.verbose>0) LOG(0) <<"querying " <<n->comp->name;
 
   //== complete & non-terminal -> create new child, then query it directly
   if(n->comp->isComplete && !n->comp->isTerminal){
-    shared_ptr<CB_Node> child = make_shared<CB_Node>(n, n->comp->getNewChild(n->R));
+    shared_ptr<CT_Node> child = make_shared<CT_Node>(n, n->comp->getNewChild(n->R));
     child->c_soFar = n->c_soFar+n->comp->c;
     n->R++;
     n->children.append(child);
@@ -67,7 +67,7 @@ void UILE_Solver::query(CB_Node *n){
         }else{
           n->childrenComplete = true;
           n->branchComplete = true;
-          CB_Node* p=n;
+          CT_Node* p=n;
           while(p){
             p->y_tot += -1.;
             p->y_num += 1.;
@@ -80,7 +80,7 @@ void UILE_Solver::query(CB_Node *n){
     }
 
     //backup compute costs
-    CB_Node* p=n->parent;
+    CT_Node* p=n->parent;
     while(p){
       p->c_tot += time;
       p=p->parent;
@@ -88,7 +88,7 @@ void UILE_Solver::query(CB_Node *n){
 
     //backup completeness
     if(n->comp->isComplete){
-      CB_Node* p=n->parent;
+      CT_Node* p=n->parent;
       bool allComplete=true;
       if(p->comp->getNumDecisions()<0 || (int)p->R<p->comp->getNumDecisions()){
         allComplete=false; //not all possible children expanded
@@ -101,7 +101,7 @@ void UILE_Solver::query(CB_Node *n){
     //backup closedness
     if(n->comp->isComplete && n->comp->isTerminal) n->branchComplete=true;
     if(n->branchComplete){
-      CB_Node* p=n->parent;
+      CT_Node* p=n->parent;
       while(p){
         if(p->comp->getNumDecisions()<0 || (int)p->R<p->comp->getNumDecisions()) break; //not all possible children expanded
         for(auto& ch:p->children) if(!ch->branchComplete){ p=0; break; }//not all children closed
@@ -129,14 +129,14 @@ void UILE_Solver::query(CB_Node *n){
   }
 }
 
-void UILE_Solver::step(){
+void ComputeTree_Solver::step(){
   y_now=-1.;
   c_now=-1.;
   clearScores();
-  CB_Node *n = 0;
-  if(opt.method1==CBSolverOptions::SCE_Thresholded){ while(!n) n=select_Thresholded(); }
-  else if(opt.method1==CBSolverOptions::SCE_RoundRobin){ while(!n) n=select_RoundRobin(); }
-  else if(opt.method1==CBSolverOptions::SCE_IterativeLimited){ while(!n) n=selectBestCompute_IterativeLimited(); }
+  CT_Node *n = 0;
+  if(opt.method1==ComputeTree_SolverOptions::SCE_Thresholded){ while(!n) n=select_Thresholded(); }
+  else if(opt.method1==ComputeTree_SolverOptions::SCE_RoundRobin){ while(!n) n=select_RoundRobin(); }
+  else if(opt.method1==ComputeTree_SolverOptions::SCE_IterativeLimited){ while(!n) n=selectBestCompute_IterativeLimited(); }
   else NIY;
   CHECK(n, "");
   n->isSelected = true;
@@ -145,8 +145,8 @@ void UILE_Solver::step(){
   steps++;
 }
 
-void UILE_Solver::runTrivial(uint k, double maxEffortPerCompute){
-  CB_Node *n = &root;
+void ComputeTree_Solver::runTrivial(uint k, double maxEffortPerCompute){
+  CT_Node *n = &root;
 
   for(uint i=0;i<k;i++){
     query(n);
@@ -172,13 +172,13 @@ void UILE_Solver::runTrivial(uint k, double maxEffortPerCompute){
   }
 }
 
-CB_Node* UILE_Solver::getBestSample_Flat(){
+CT_Node* ComputeTree_Solver::getBestSample_Flat(){
   if(!terminals.N) return 0;
 
   //-- compute UCB1 score for all terminals
   arr score(terminals.N);
   uint i=0;
-  for(CB_Node* n:terminals){
+  for(CT_Node* n:terminals){
     if(n->y_num>0.){
 //      double parent_num=0;
 //      for(auto& ch: n->parent->children) parent_num += ch->y_num;
@@ -193,21 +193,21 @@ CB_Node* UILE_Solver::getBestSample_Flat(){
   return terminals(argmax(score));
 }
 
-CB_Node* UILE_Solver::getBestSample_UCT(){
+CT_Node* ComputeTree_Solver::getBestSample_UCT(){
   if(!terminals.N) return 0;
 
   double bestMean=0.;
-  for(CB_Node* n:terminals){
+  for(CT_Node* n:terminals){
     double y = n->y_tot/n->y_num;
     if(y>bestMean) bestMean=y;
   }
   y_baseline = bestMean;
 
   //-- select terminal node using tree policy
-  CB_Node* n = &root;
+  CT_Node* n = &root;
   while(!n->comp->isTerminal){
     //for all children with data compute UCB1 score
-    CB_Node* best=0;
+    CT_Node* best=0;
     for(auto& n:n->children){
       if(n->y_num>0.){
         n->y_ucb = n->y_tot/n->y_num + opt.beta * ::sqrt(2.*::log(n->parent->y_num) / n->y_num);
@@ -225,23 +225,23 @@ CB_Node* UILE_Solver::getBestSample_UCT(){
 }
 
 
-CB_Node* UILE_Solver::getCheapestIncompleteChild(CB_Node *r){
-  CB_Node* m=0;
+CT_Node* ComputeTree_Solver::getCheapestIncompleteChild(CT_Node *r){
+  CT_Node* m=0;
   for(auto& ch:r->children) if(!ch->comp->isComplete && (!m || ch->comp->c < m->comp->c)) m=ch.get();
   return m;
 }
 
-void UILE_Solver::clearScores() {
-  for(CB_Node *n:all){
+void ComputeTree_Solver::clearScores() {
+  for(CT_Node *n:all){
     n->score = -1.;
     n->isSelected = false;
     n->isBest = false;
   }
 }
 
-CB_Node* UILE_Solver::getBestCompute(){
-  CB_Node* best=0;
-  for(CB_Node *n:all){
+CT_Node* ComputeTree_Solver::getBestCompute(){
+  CT_Node* best=0;
+  for(CT_Node *n:all){
     if(!n->comp->isComplete){
       n->score = 1./( n->comp->c + n->comp->effortHeuristic() );
       if(!best || n->score>=best->score) best=n;
@@ -251,12 +251,12 @@ CB_Node* UILE_Solver::getBestCompute(){
   return best;
 }
 
-CB_Node* UILE_Solver::getBestExpand(){
-  CB_Node* best=0;
-  for(CB_Node *n:all){
+CT_Node* ComputeTree_Solver::getBestExpand(){
+  CT_Node* best=0;
+  for(CT_Node *n:all){
     int Rmax = n->comp->getNumDecisions();
     if(n->comp->isComplete && !n->comp->isTerminal && n->comp->l<1e9 && (Rmax<0 || (int)n->R<Rmax)){
-      n->score = 1./( sqrt(n->y_num+1.) * (n->R+1.) * n->comp->correlationHeuristic() ); // * (n->comp->effortHeuristic());
+      n->score = 1./( sqrt(n->y_num+1.) * (n->R+1.) / n->comp->branchingHeuristic() ); // * (n->comp->effortHeuristic());
       if(!best || n->score>=best->score) best=n;
     }
   }
@@ -265,49 +265,49 @@ CB_Node* UILE_Solver::getBestExpand(){
 }
 
 
-CB_Node* UILE_Solver::select_Thresholded(){
+CT_Node* ComputeTree_Solver::select_Thresholded(){
   //sample?
-  CB_Node *s = getBestSample_UCT();
+  CT_Node *s = getBestSample_UCT();
   //select and threshold
   if(s && s->score>opt.theta) return s;
 
-  if(opt.method2==CBSolverOptions::SCE_IterativeLimited){
+  if(opt.method2==ComputeTree_SolverOptions::SCE_IterativeLimited){
       return selectBestCompute_IterativeLimited();
-  }else if(opt.method2==CBSolverOptions::SCE_RoundRobin){
+  }else if(opt.method2==ComputeTree_SolverOptions::SCE_RoundRobin){
       return selectBestCompute_RoundRobin();
   }//else...
 
   //compute?
-  CB_Node *c = getBestCompute();
+  CT_Node *c = getBestCompute();
   if(c && c->comp->c < opt.gamma*sqrt(root.c_tot)) return c; //v1
 //  if(c && c->comp->c < gamma*all.N) return c; //v2
 //  if(c && root.c_tot < gamma*all.N*all.N) return c; //v3
 
   //expand?
-  CB_Node *e = getBestExpand();
+  CT_Node *e = getBestExpand();
   return e;
 }
 
-CB_Node* UILE_Solver::select_RoundRobin(){
+CT_Node* ComputeTree_Solver::select_RoundRobin(){
 
   if(rr_sample < opt.rr_sampleFreq*rr_compute){
     rr_sample++;
     return getBestSample_UCT();
   }else{
       rr_compute++;
-      if(opt.method2==CBSolverOptions::SCE_IterativeLimited){
+      if(opt.method2==ComputeTree_SolverOptions::SCE_IterativeLimited){
           return selectBestCompute_IterativeLimited();
-      }else if(opt.method2==CBSolverOptions::SCE_RoundRobin){
+      }else if(opt.method2==ComputeTree_SolverOptions::SCE_RoundRobin){
           return selectBestCompute_RoundRobin();
-      }else if(opt.method2==CBSolverOptions::SCE_Thresholded){
+      }else if(opt.method2==ComputeTree_SolverOptions::SCE_Thresholded){
           //compute?
-          CB_Node *c = getBestCompute();
+          CT_Node *c = getBestCompute();
           if(c && c->comp->c < opt.gamma*sqrt(root.c_tot)) return c; //v1
           //  if(c && c->comp->c < gamma*all.N) return c; //v2
           //  if(c && root.c_tot < gamma*all.N*all.N) return c; //v3
 
           //expand?
-          CB_Node *e = getBestExpand();
+          CT_Node *e = getBestExpand();
           return e;
 
       }else NIY;
@@ -316,7 +316,7 @@ CB_Node* UILE_Solver::select_RoundRobin(){
   return 0;
 }
 
-CB_Node* UILE_Solver::selectBestCompute_IterativeLimited(){
+CT_Node* ComputeTree_Solver::selectBestCompute_IterativeLimited(){
   if(!lifo.N){
     lifo.memMove=true;
     limit_R++;
@@ -327,7 +327,7 @@ CB_Node* UILE_Solver::selectBestCompute_IterativeLimited(){
 
   //depth first search
   for(;lifo.N;){
-    CB_Node *n = lifo(0);
+    CT_Node *n = lifo(0);
     if(n->comp->isTerminal && n->comp->isComplete){ lifo.popFirst(); return 0; } //(don't) sample
     if(!n->comp->isComplete){
       if(n->c_soFar+n->comp->c<limit_c){ //compute
@@ -341,7 +341,7 @@ CB_Node* UILE_Solver::selectBestCompute_IterativeLimited(){
       continue;
     }
     int Rmax = n->comp->getNumDecisions();
-    if(Rmax<0 || Rmax>double(limit_R)/n->comp->correlationHeuristic()) Rmax = double(limit_R)/n->comp->correlationHeuristic();
+    if(Rmax<0 || Rmax>double(limit_R)*n->comp->branchingHeuristic()) Rmax = double(limit_R)*n->comp->branchingHeuristic();
     if(n->comp->isComplete && n->R<(uint)Rmax){ //expand
       return n;
     }
@@ -356,11 +356,11 @@ CB_Node* UILE_Solver::selectBestCompute_IterativeLimited(){
   return 0;
 }
 
-CB_Node* UILE_Solver::selectBestCompute_RoundRobin(){
+CT_Node* ComputeTree_Solver::selectBestCompute_RoundRobin(){
     rr_computeFifo.memMove=true;
 
   if(rr_computeFifo.N && rr_compComp < opt.rr_computeFreq*rr_compExp){
-    CB_Node *n = 0;
+    CT_Node *n = 0;
     for(;rr_computeFifo.N;){
         n = rr_computeFifo(0);
         if(!n->comp->isComplete) break;
@@ -379,9 +379,9 @@ CB_Node* UILE_Solver::selectBestCompute_RoundRobin(){
   return getBestExpand();
 }
 
-void UILE_Solver::report(){
+void ComputeTree_Solver::report(){
   double bestMean=0.;
-  for(CB_Node* n:terminals){
+  for(CT_Node* n:terminals){
     double y = n->y_tot/n->y_num;
     if(y>bestMean) bestMean=y;
   }
@@ -394,13 +394,13 @@ void UILE_Solver::report(){
 }
 
 
-rai::Array<CB_Node*> getAllNodes(CB_Node& root){
-  rai::Array<CB_Node*> queue;
+rai::Array<CT_Node*> getAllNodes(CT_Node& root){
+  rai::Array<CT_Node*> queue;
   queue.append(&root);
 
   uint i=0;
   while(i<queue.N){
-    CB_Node *n = queue(i);
+    CT_Node *n = queue(i);
     n->comp->ID=i;
     i++;
 
@@ -413,13 +413,13 @@ rai::Array<CB_Node*> getAllNodes(CB_Node& root){
   return queue;
 }
 
-void printTree(std::ostream& os, CB_Node& root){
+void printTree(std::ostream& os, CT_Node& root){
 
-  rai::Array<CB_Node*> T = getAllNodes(root);
+  rai::Array<CT_Node*> T = getAllNodes(root);
 
   rai::Graph G;
   for(uint i=0;i<T.N;i++){
-    CB_Node *n = T(i);
+    CT_Node *n = T(i);
     rai::NodeL par;
     if(n->parent) par.append(G.elem(n->parent->comp->ID));
     rai::Graph& sub = G.newSubgraph(n->comp->name, par, {});
