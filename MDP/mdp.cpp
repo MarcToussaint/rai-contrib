@@ -21,7 +21,12 @@
 #include <map>
 #include <iomanip>
 
-
+uintA TUP(uint a){ return uintA{a}; }
+uintA TUP(uint a, uint b){ return uintA{a,b}; }
+uintA TUP(uint a, uint b, uint c){ return uintA{a,b,c}; }
+uintA TUP(uint a, uint b, uint c, uint d){ return uintA{a,b,c,d}; }
+uintA TUP(uint  a, uint b, uint c, uint d, uint e){ return uintA{a,b,c,d,e}; }
+uintA TUP(uint  a, uint b, uint c, uint d, uint e, uint f){ return uintA{a,b,c,d,e,f}; }
 
 /** \defgroup mdp MDP and POMDP Module
 
@@ -61,14 +66,14 @@ void mdp::writeMDP_fg(const MDP_structured& mdp, std::ostream& os, bool brief){
     for(infer::Factor *f: mdp.facs){ f->write(os, true); os <<"\n"; }
   }
   os <<"\nmdp . {";
-  os <<"\n  leftVars   "; listWriteNames(mdp.leftVars, os);
-  os <<"\n  rightVars  "; listWriteNames(mdp.rightVars, os);
-  os <<"\n  obsVars    "; listWriteNames(mdp.obsVars, os);
-  os <<"\n  ctrlVars   "; listWriteNames(mdp.ctrlVars, os);
-  os <<"\n  initFacs   "; listWriteNames(mdp.initFacs, os);
-  os <<"\n  transFacs  "; listWriteNames(mdp.transFacs, os);
-  os <<"\n  obsFacs    "; listWriteNames(mdp.obsFacs, os);
-  os <<"\n  rewardFacs "; listWriteNames(mdp.rewardFacs, os);
+  os <<"\n  leftVars   "; listWrite(mdp.leftVars, os);
+  os <<"\n  rightVars  "; listWrite(mdp.rightVars, os);
+  os <<"\n  obsVars    "; listWrite(mdp.obsVars, os);
+  os <<"\n  ctrlVars   "; listWrite(mdp.ctrlVars, os);
+  os <<"\n  initFacs   "; listWrite(mdp.initFacs, os);
+  os <<"\n  transFacs  "; listWrite(mdp.transFacs, os);
+  os <<"\n  obsFacs    "; listWrite(mdp.obsFacs, os);
+  os <<"\n  rewardFacs "; listWrite(mdp.rewardFacs, os);
   os <<"\n  gamma      [" <<mdp.gamma <<"]";
   os <<"\n}" <<endl;
 }
@@ -81,10 +86,10 @@ void mdp::writeFSC_fg(const FSC_structured& fsc, std::ostream& os, bool brief){
     for(infer::Factor *f: fsc.facs){ f->write(os, true); os <<"\n"; }
   }
   os <<"\nfsc . {";
-  os <<"\n  leftVars  "; listWriteNames(fsc.leftVars, os);
-  os <<"\n  rightVars "; listWriteNames(fsc.rightVars, os);
-  os <<"\n  initFacs  "; listWriteNames(fsc.initFacs, os);
-  os <<"\n  transFacs "; listWriteNames(fsc.transFacs, os);
+  os <<"\n  leftVars  "; listWrite(fsc.leftVars, os);
+  os <<"\n  rightVars "; listWrite(fsc.rightVars, os);
+  os <<"\n  initFacs  "; listWrite(fsc.initFacs, os);
+  os <<"\n  transFacs "; listWrite(fsc.transFacs, os);
   os <<"\n}" <<endl;
 }
 
@@ -105,7 +110,7 @@ void mdp::readMDP_arr(MDP& mdp, const char *filename, bool binary){
   mdp.Pyxa.readTagged(is, "Pyxa");
   mdp.Px  .readTagged(is, "Px");
   mdp.Rax .readTagged(is, "Rax");
-  arr(&mdp.gamma, 1, true)().readTagged(is, "gamma");
+  arr(&mdp.gamma, 1, true).readTagged(is, "gamma");
 }
 
 void mdp::clearMDP(MDP_structured& mdp){
@@ -148,7 +153,7 @@ template<class T> void namesToSublist(rai::Array<T*>& sub, const rai::Array<rai:
   T *v;
   sub.clear();
   for(i=0; i<strings.N; i++){
-    v=listFindByName(list, strings(i));
+    NIY//v=listFindByName(list, strings(i));
     CHECK(v, "variable '" <<strings(i) <<"' is unkown");
     sub.append(v);
   }
@@ -331,11 +336,12 @@ void mdp::readMDP_ddgm_tabular(MDP_structured& mdp, const char *filename){
     if(tag=="horizon"){      CHECK(insidePomdp, "");  double z; is >>PARSE("(") >>z >>PARSE(")");  continue; }
     //a CPT declaration:
     name.read(is, " \t\n\r(", ")", true);
-    infer::Variable *v=listFindByName(mdp.vars, tag);  CHECK(v, "");
-    f=listFindByName(mdp.facs, name); CHECK(f, "");
+    infer::Variable *v=0;
+    NIY//v=listFindByName(mdp.vars, tag);  CHECK(v, "");
+    NIY//f=listFindByName(mdp.facs, name); CHECK(f, "");
     if(tag(tag.N-1)!='\''){
       mdp.initFacs.append(f);
-      mdp.leftVars.append(listFindByName(mdp.vars, tag));
+      NIY//mdp.leftVars.append(listFindByName(mdp.vars, tag));
     } else if(mdp.obsVars.findValue(v)!=-1) mdp.obsFacs.append(f);
     else if(rewardVars.findValue(v)!=-1) mdp.rewardFacs.append(f);
     else if(mdp.ctrlVars.findValue(v)!=-1){ HALT("there should be no CPT for controlled vars!"); } else mdp.transFacs.append(f);
@@ -373,7 +379,7 @@ void mdp::readMDP_ddgm_tabular(MDP_structured& mdp, const char *filename){
   }
   if(mdp.rewardFacs.N>1){ // multiple reward functions -> add them to a single factor
     tmpVars.clear();
-    for(infer::Factor *f: mdp.rewardFacs) setUnion(tmpVars, tmpVars, f->variables);
+    for(infer::Factor *f: mdp.rewardFacs) tmpVars = setUnion(tmpVars, f->variables);
     infer::Factor *ff=new infer::Factor(tmpVars);
     ff->name="REWARD_AUTO";
     ff->P.setZero();
@@ -532,7 +538,7 @@ void mdp::addActionNoise(arr& Pxax, double eps){
   uint nx=Pxax.d0, na=Pxax.d1;
   uint i, j, a;
   arr Pxx;
-  tensorMarginal(Pxx, Pxax, TUP(0, 2));
+  tensorMarginal(Pxx, Pxax, uintA{0, 2});
   Pxx /= (double)na;
   //::checkNormalization(Pxx);
   for(i=0; i<nx; i++) for(j=0; j<nx; j++) for(a=0; a<na; a++){
@@ -716,7 +722,7 @@ void mdp::createNeighorList(MDP& mdp){
 
 double mdp::checkNormalization(const MDP_structured& mdp){
   infer::Factor post;
-  eliminationAlgorithm(post, cat(mdp.transFacs, mdp.initFacs), infer::VariableList());
+  eliminationAlgorithm(post, (mdp.transFacs, mdp.initFacs), infer::VariableList());
   arr P;
   post.getP(P);
   return P.scalar();
@@ -724,7 +730,7 @@ double mdp::checkNormalization(const MDP_structured& mdp){
 
 void mdp::checkJointNormalization(const MDP_structured& mdp, const FSC_structured& fsc){
   infer::Factor post;
-  eliminationAlgorithm(post, cat(fsc.transFacs, mdp.obsFacs, mdp.transFacs, fsc.initFacs, mdp.initFacs), infer::VariableList());
+  eliminationAlgorithm(post, (fsc.transFacs, mdp.obsFacs, mdp.transFacs, fsc.initFacs, mdp.initFacs), infer::VariableList());
   arr P;
   post.getP(P);
   //cout <<post <<endl;
@@ -738,13 +744,14 @@ void mdp::collapseToFlat(MDP& mdpUn, const MDP_structured& mdp){
   uint da = 1;  for(i=0; i<mdp.ctrlVars.N; i++) da *= mdp.ctrlVars(i)->dim;
   
   infer::Factor post;
-  eliminationAlgorithm(post, mdp.transFacs, cat(mdp.rightVars, mdp.ctrlVars, mdp.leftVars));
+  eliminationAlgorithm(post, mdp.transFacs, (mdp.rightVars, mdp.ctrlVars, mdp.leftVars));
   post.getP(mdpUn.Pxax);
   mdpUn.Pxax.reshape(dx, da, dx);
   
-  infer::VariableList obsvars=cat(mdp.obsVars, mdp.rightVars, mdp.ctrlVars);
+  infer::VariableList obsvars = (mdp.obsVars, mdp.rightVars, mdp.ctrlVars);
   infer::Factor dummy(obsvars);
-  eliminationAlgorithm(post, cat({&dummy}, mdp.obsFacs), obsvars);
+  infer::VariableList tmp; NIY// = {&dummy};
+  eliminationAlgorithm(post, (tmp, mdp.obsFacs), obsvars);
   post.getP(mdpUn.Pyxa);
   mdpUn.Pyxa.reshape(dy, dx, da);
   
@@ -752,9 +759,9 @@ void mdp::collapseToFlat(MDP& mdpUn, const MDP_structured& mdp){
   post.getP(mdpUn.Px);
   mdpUn.Px.reshape(dx);
   
-  infer::VariableList rewardvars=cat(mdp.ctrlVars, mdp.leftVars);
+  infer::VariableList rewardvars=(mdp.ctrlVars, mdp.leftVars);
   infer::Factor dummy2(rewardvars);
-  eliminationAlgorithm(post, cat({&dummy2}, mdp.rewardFacs), rewardvars);
+  eliminationAlgorithm(post, (/*{&dummy2}*/tmp, mdp.rewardFacs), rewardvars);
   //eliminationAlgorithm(post, mdp.rewardFacs, ids(cat(mdp.ctrlVars, mdp.leftVars)));
   //listWrite(mdp.rewardFacs, cout);
   post.getP(mdpUn.Rax);
@@ -774,7 +781,7 @@ void mdp::collapse2levelFSC(FSC_lev1& fsc1, const FSC_lev2& fsc2){
   uint i, j, k;
   
   fsc1.P0.resize(d0, d1);
-  tensorEquation(fsc1.P0, fsc2.P0, TUP(0), fsc2.P1, TUP(1), 0);
+  tensorEquation(fsc1.P0, fsc2.P0, uintA{0}, fsc2.P1, uintA{1}, 0);
   fsc1.P0.reshape(d0*d1);
   
   fsc1.Pa0.resize(da, d0, d1);
@@ -783,7 +790,7 @@ void mdp::collapse2levelFSC(FSC_lev1& fsc1, const FSC_lev2& fsc2){
   fsc1.Pa0.reshape(da, d0*d1);
   
   fsc1.P0y0.resize(TUP(d0, d1, dy, d0, d1));
-  tensorEquation(fsc1.P0y0, fsc2.P01y0, TUP(0, 1, 2, 3), fsc2.P1y01, TUP(1, 2, 3, 4), 0);
+  tensorEquation(fsc1.P0y0, fsc2.P01y0, uintA{0, 1, 2, 3}, fsc2.P1y01, TUP(1, 2, 3, 4), 0);
   fsc1.P0y0.reshape(d0*d1, dy, d0*d1);
   
   tensorCheckCondNormalization(fsc1.P0  , 1, 1e-10);
@@ -864,7 +871,7 @@ void mdp::standardInitFsc2(FSC_lev2& fsc, const MDP& mdp, uint d0, uint d1, bool
   generalNode1Transition(fsc.P1y01, d1, dy, d0, .1, .1, 1.);
   zeroNodeStart(fsc.P1, d1);
   if(hierarchical){
-    initHierarchical(TUP(da, d1, d0/2).min(), fsc);
+    NIY//initHierarchical(min(TUP(da, d1, d0/2)), fsc);
   }else{
     fsc.hierarchical=false;
   }
@@ -973,7 +980,7 @@ void mdp::standardInitFsc_structured_levels(FSC_structured& fsc, const MDP& mdp,
   infer::Variable *x_ = new infer::Variable(dx , "state(t+1)");
   infer::Variable *y_ = new infer::Variable(dy , "observation(t+1)");
   for(i=m; i--;) nodes_(i) = new infer::Variable(levels(i) , STRING("node" <<i <<"(t+1)"));
-  fsc.vars     = cat(nodes_, {y_, x_, a}, nodes, {y, x});
+  fsc.vars     = (nodes_, infer::VariableList{y_, x_, a}, nodes, infer::VariableList{y, x});
   fsc.leftVars = nodes ;
   fsc.rightVars= nodes_;
   
@@ -987,9 +994,9 @@ void mdp::standardInitFsc_structured_levels(FSC_structured& fsc, const MDP& mdp,
     for(i=m-2; i>0; i--) Ftran(i) = new infer::Factor({nodes_(i), nodes(i+1), y_ , nodes(i-1), nodes(i)}); //middle nodes
     i=0;               Ftran(i) = new infer::Factor({nodes_(i), nodes(i+1), y_ , nodes(i)}); //bottom node
   }
-  fsc.facs      = cat(Ftran, {Fa0}, Finit);
+  fsc.facs      = (Ftran, infer::VariableList{/*Fa0*/}, Finit); NIY
   fsc.initFacs  = Finit;
-  fsc.transFacs = cat(Ftran, {Fa0});
+  NIY//fsc.transFacs = (Ftran, infer::VariableList{/*Fa0*/}); NIY
   
   oneNodeOneAction(Fa0->P, da, levels(0), 1., 1., 100.);
   for(i=0; i<m; i++){
@@ -1000,6 +1007,7 @@ void mdp::standardInitFsc_structured_levels(FSC_structured& fsc, const MDP& mdp,
 }
 
 void mdp::standardInitFsc_structured_levels(FSC_structured& fsc, const MDP_structured& mdp, const uintA& levels){
+#if 0
   clearFSC(fsc);
   
   uint i, m=levels.N;
@@ -1018,13 +1026,13 @@ void mdp::standardInitFsc_structured_levels(FSC_structured& fsc, const MDP_struc
   infer::VariableList nodes(m), nodes_(m);
   for(i=m; i--;) nodes(i) = new infer::Variable(levels(i) , STRING("node" <<i));
   for(i=m; i--;) nodes_(i) = new infer::Variable(levels(i) , STRING("node" <<i <<"'"));
-  fsc.vars     = cat(nodes_, nodes);
+  fsc.vars     = (nodes_, nodes);
   fsc.leftVars = nodes ;
   fsc.rightVars= nodes_;
   
   infer::FactorList Finit(m), Ftran(m);
   for(i=m; i--;) Finit(i) = new infer::Factor({nodes(i)}, STRING("Finit" <<i));
-  infer::Factor *Fa0  = new infer::Factor(cat(mdp.ctrlVars, {nodes(0)}), STRING("Faction"));
+  infer::Factor *Fa0  = new infer::Factor((mdp.ctrlVars, infer::FactorList{nodes(0)}), STRING("Faction"));
   if(m==1){
     i=0;               Ftran(i) = new infer::Factor(cat({nodes_(i)}, mdp.obsVars, {nodes(i)}), STRING("Ftrans" <<i));
   }else{
@@ -1035,14 +1043,15 @@ void mdp::standardInitFsc_structured_levels(FSC_structured& fsc, const MDP_struc
   fsc.facs      = cat(Ftran, {Fa0}, Finit);
   fsc.initFacs  = Finit;
   fsc.transFacs = cat(Ftran, {Fa0});
-  
+
   oneNodeOneAction(Fa0->P, adim, levels(0), 1., 1., 100.);
   for(i=0; i<m; i++){
     if(i) generalNodeTransitions(Ftran(i)->P, .1, .1, 0.);
     else  generalNodeTransitions(Ftran(i)->P, .1, .1, 1.);
     zeroNodeStart(Finit(i)->P, levels(i));
   }
-  
+#endif
+NIY
   //cout <<"\nfsc initFacs:" <<endl;  listWrite(fsc.initFacs, cout, "\n  ");
   //cout <<"\nfsc transFacs:" <<endl;  listWrite(fsc.transFacs, cout, "\n  ");
   //cout <<"\nfsc facs:" <<endl;  listWrite(fsc.facs, cout, "\n  ");

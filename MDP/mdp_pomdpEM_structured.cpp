@@ -56,13 +56,13 @@ double mdp::pomdpEM_structured(
   Rax->setP(mdp_Rax);
 #endif
   
-  infer::VariableList leftVars=cat(fsc.leftVars, mdp.leftVars);
-  infer::VariableList rightVars=cat(fsc.rightVars, mdp.rightVars);
-  infer::VariableList tail_headVars=cat(rightVars, leftVars);
+  infer::VariableList leftVars=(fsc.leftVars, mdp.leftVars);
+  infer::VariableList rightVars=(fsc.rightVars, mdp.rightVars);
+  infer::VariableList tail_headVars=(rightVars, leftVars);
   
-  infer::FactorList allTransitions = cat(fsc.transFacs, mdp.obsFacs, mdp.transFacs);
-  infer::FactorList allRewards = cat(mdp.rewardFacs, allTransitions);
-  infer::FactorList allInits = cat(fsc.initFacs, mdp.initFacs);
+  infer::FactorList allTransitions = (fsc.transFacs, mdp.obsFacs, mdp.transFacs);
+  infer::FactorList allRewards = (mdp.rewardFacs, allTransitions);
+  infer::FactorList allInits = (fsc.initFacs, mdp.initFacs);
   
   infer::Factor Falpha(leftVars);
   infer::Factor Fbeta(rightVars);
@@ -135,10 +135,10 @@ double mdp::pomdpEM_structured(
   
   //----- M-STEP
   //term2: derived from the full two-time-slice model (beta*P_(x'|x)*alpha)
-  infer::FactorList twotimeslice = cat({&Fbeta}, fsc.transFacs, mdp.obsFacs, mdp.transFacs, {&Falpha});
+  infer::FactorList twotimeslice; NIY// = ({&Fbeta}, fsc.transFacs, mdp.obsFacs, mdp.transFacs, {&Falpha});
   
   //term1: derived from the immediate reward model
-  infer::FactorList immediateR = cat(mdp.rewardFacs, fsc.transFacs, mdp.obsFacs, mdp.transFacs, {&Falpha});
+  infer::FactorList immediateR; NIY// = (mdp.rewardFacs, fsc.transFacs, mdp.obsFacs, mdp.transFacs, {&Falpha});
   
   //loop through all transition factors of the controller
   for(i=0; i<fsc.transFacs.N; i++){

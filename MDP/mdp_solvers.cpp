@@ -18,6 +18,7 @@
 #include <Core/util.h>
 #include "mdp.h"
 #include "mstep.h"
+#include "math.h"
 
 #define Pt(t) ::pow(mdp.gamma, t)
 #ifndef rescaleRewards
@@ -42,7 +43,7 @@ void mdp::maxPolicyMap(uintA& piMap, const arr& pi){
   arr tpi;
   op_transpose(tpi, pi);
   piMap.resize(X);
-  for(x=0; x<X; x++) piMap(x) = tpi[x].argmax();
+  for(x=0; x<X; x++) piMap(x) = argmax(tpi[x]);
 }
 
 void mdp::getPxx(arr& Pxx, const arr& Pxax, const arr& pi){
@@ -59,7 +60,7 @@ void mdp::getMaxPxxMap(uintA& PxxMap, const arr& Pxax, const arr& pi){
   PxxMap.resize(X);
   getPxx(tmp, Pxax, pi);
   transpose(tmp);
-  for(x=0; x<X; x++) PxxMap(x) = tmp[x].argmax();
+  for(x=0; x<X; x++) PxxMap(x) = argmax(tmp[x]);
 }
 
 //===========================================================================
@@ -154,8 +155,8 @@ void mdp::MDP::prioritizedSweeping(arr& V, double VerrThreshold) const{
   
   //add max reward to the que
   arr Rx;
-  tensorMaxMarginal(Rx, Rax, TUP(1));
-  x=Rx.argmax();
+  tensorMaxMarginal(Rx, Rax, uintA{1});
+  x=argmax(Rx);
   Vnew(x)=Rx(x);
   ERR(x) =Vnew(x)-V(x);
   queue.insertInSorted(x, PQcompare);
@@ -198,7 +199,7 @@ void mdp::mdpEM(const MDP& mdp, arr& pi, arr& hatBeta, uint Tmax, float cutoffTi
   uint cutoffTime=0;
   
   arr mdp_Rax = mdp.Rax;
-  double Rmin=mdp_Rax.min(), Rmax=mdp_Rax.max();
+  double Rmin=min(mdp_Rax), Rmax=max(mdp_Rax);
   if(rescaleRewards || (mstepType!=MstepNoisyMax && Rmin<0.)){
     if(!rescaleRewards) RAI_MSG("can't handle neg rewards in case of exact M-step -- I'm enforcing rescaling of rewards!");
     for(uint i=0; i<mdp_Rax.N; i++) mdp_Rax.elem(i) = (mdp_Rax.elem(i)-Rmin)/(Rmax-Rmin);
@@ -234,8 +235,8 @@ void mdp::mdpEM(const MDP& mdp, arr& pi, arr& hatBeta, uint Tmax, float cutoffTi
   beta_neutral = 1.;
   
   arr alpha_(X), beta_(X), beta_neutral_(X);
-  ALPHA.resize(Tmax, X); ALPHA.setZero(); ALPHA[0]() = alpha;
-  BETA .resize(Tmax, X); BETA .setZero(); BETA[0]()  = beta;
+  ALPHA.resize(Tmax, X); ALPHA.setZero(); ALPHA[0] = alpha;
+  BETA .resize(Tmax, X); BETA .setZero(); BETA[0]  = beta;
   
   
   arr hat_alpha(X), hat_beta(X);
@@ -310,8 +311,8 @@ void mdp::mdpEM(const MDP& mdp, arr& pi, arr& hatBeta, uint Tmax, float cutoffTi
     weightedAddLog(hat_alpha, hat_alphaLog, Pt(t), alpha, alphaLog);
     weightedAddLog(hat_beta , hat_betaLog , Pt(t), beta /beta_neutral, betaLog);
     
-    ALPHA[t]() = alpha;
-    BETA[t]()  = beta;
+    ALPHA[t] = alpha;
+    BETA[t]  = beta;
     //prune in all phases: too small alphas or betas
     if(false){
       /*maxb=0.;

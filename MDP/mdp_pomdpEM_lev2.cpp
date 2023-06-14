@@ -50,7 +50,7 @@ double mdp::pomdpEM_lev2(
               
   //----- rescale rewards if necessary
   arr mdp_Rax = mdp.Rax;
-  double Rmin=mdp_Rax.min(), Rmax=mdp_Rax.max();
+  double Rmin=min(mdp_Rax), Rmax=min(mdp_Rax);
   if(rescaleRewards || (!maxMstep && Rmin<0.)){
     //if(!rescaleRewards) RAI_MSG("can't handle neg rewards in case of exact M-step -- I'm enforcing rescaling of rewards!");
     for(uint i=0; i<mdp_Rax.N; i++) mdp_Rax.elem(i) = (mdp_Rax.elem(i)-Rmin)/(Rmax-Rmin);

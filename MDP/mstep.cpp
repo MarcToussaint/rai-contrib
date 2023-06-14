@@ -35,7 +35,7 @@ void noisyPowerMaxMstep(arr& param, const arr& post, uint left, double power=1.,
   like = post;
   like /= param;
   checkNan(like);
-  double Lmin=like.min(), Lmax=like.max();
+  double Lmin=min(like), Lmax=max(like);
   Lmin -= .1;
   for(uint i=0; i<like.N; i++) like.elem(i) = ::pow((like.elem(i)-Lmin)/(Lmax-Lmin), power);
   param *= like;

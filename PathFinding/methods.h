@@ -5,11 +5,11 @@
 #include <KOMO/komo.h>
 
 namespace rai{
-  struct Spline;
+  struct BSpline;
 }
 
 
-void makeSpline(rai::Spline& S, const arr& path, double initialDuration);
+void makeSpline(rai::BSpline& S, const arr& path, double initialDuration);
 
 struct PathResult{
   arr path;

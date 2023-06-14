@@ -181,7 +181,7 @@ void fillSDF(SDF_GridData& sdf, bool fwdbwd, bool depthEuclid){
   if(fwdbwd){
     //up
     for(int i=sdf.gridData.d0;i--;)
-       for(int j=0;j<(int)sdf.gridData.d1;j++) for(int k=0;k<sdf.gridData.d2;k++){{
+       for(int j=0;j<(int)sdf.gridData.d1;j++) for(int k=0;k<(int)sdf.gridData.d2;k++){{
         updateVertex(sdf, {i,j,k}, neighbors, dists);
       }
     }
@@ -253,13 +253,3 @@ void fillSDF(SDF_GridData& sdf, bool fwdbwd, bool depthEuclid){
   }
 }
 
-void sdf_smooth(SDF_GridData& sdf, uint width, uint iters){
-  arr tmp;
-  rai::copy(tmp, sdf.gridData);
-  for(uint i=0;i<iters;i++){
-    tmp = integral(tmp);
-    tmp = differencing(tmp, width);
-    tmp.shift(((width-1)/2)*(-1-tmp.d2-tmp.d1*tmp.d2), false);
-  }
-  rai::copy(sdf.gridData, tmp);
-}

@@ -88,7 +88,7 @@ double mdp::pomdpEM_lev1(
   
   infer::VariableList leftVars={&n0 , &x};
   infer::VariableList rightVars={&n0_, &x_};
-  infer::VariableList tail_headVars=cat(rightVars, leftVars);
+  infer::VariableList tail_headVars=(rightVars, leftVars);
   
   //infer::FactorList allTransitions={&Fa0, &Fxax, &Fyxa, &F0y0};
   infer::FactorList allTransitions = {&F0y0, &Fyxa, &Fxax, &Fa0};

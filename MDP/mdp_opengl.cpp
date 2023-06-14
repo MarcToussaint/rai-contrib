@@ -18,7 +18,7 @@
 #include "mdp.h"
 
 #include <Gui/opengl.h>
-#include <Plot/plot.h>
+#include <Gui/plot.h>
 
 //#ifdef RAI_GL
 
@@ -52,9 +52,9 @@ void mdp::showAB(const arr& alpha, const arr& beta){
       if(maze(y, x)==0){ img(y, x, 0)=255; img(y, x, 1)=255; img(y, x, 2)=255; } else if(maze(y, x)==1){ img(y, x, 0)=0;   img(y, x, 1)=0;   img(y, x, 2)=0;   } else if(maze(y, x)==2){ img(y, x, 0)=0;   img(y, x, 1)=0;   img(y, x, 2)=255; } else if(maze(y, x)==3){ img(y, x, 0)=255; img(y, x, 1)=0;   img(y, x, 2)=0;   } else if(maze(y, x)==4){ img(y, x, 0)=0;   img(y, x, 1)=255; img(y, x, 2)=0;   } else HALT("strange global maze");
     }
   img.reshape(alpha.N, 3);
-  double aM=alpha.max(), bM=beta.max();
-  for(x=0; x<alpha.N; x++) if(alpha(x)) mix(img[x](), {(byte)0, 0, 255}, alpha(x)/aM);
-  for(x=0; x<alpha.N; x++) if(beta(x)) mix(img[x](), {(byte)255, 0, 0}, beta(x)/bM);
+  double aM=max(alpha), bM=max(beta);
+  for(x=0; x<alpha.N; x++) if(alpha(x)) mix(img[x].noconst(), byteA{(byte)0, 0, 255}, alpha(x)/aM);
+  for(x=0; x<alpha.N; x++) if(beta(x)) mix(img[x].noconst(), byteA{(byte)255, 0, 0}, beta(x)/bM);
   img.reshape(maze.d0, maze.d1, 3);
   flip_image(img);
   static OpenGL *gl=NULL;
@@ -74,7 +74,7 @@ void mdp::plotPolicyAndValue(const arr& pi, const arr& V, const MDP& mdp, bool w
   uintA tmpI;
   plot()->Clear();
   tmp=~V;
-  tmp *= .8/tmp.max();
+  tmp *= .8/max(tmp);
   tmp.reshape(global_maze.d0, global_maze.d1);
   plot()->Surface(tmp);
   

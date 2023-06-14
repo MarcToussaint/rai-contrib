@@ -27,7 +27,7 @@ void mdp::EMSolver::getParameters(){
   rai::getParameter(evaluationCheckHorizon, "evaluationCheckHorizon", (uint)0);
   
   rai::getParameter((int&)fscType, "fscType", 0);
-  rai::getParameter(levels, "levels", TUP(10));
+  rai::getParameter(levels, "levels", uintA{10});
   
   rai::getParameter((int&)mstepType, "mstepType", 0);
   rai::getParameter(mstepRate, "mstepRate", .3);

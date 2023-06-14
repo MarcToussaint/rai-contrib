@@ -21,4 +21,3 @@ struct PclSdf{
 
 
 void fillSDF(SDF_GridData& sdf, bool fwdbwd, bool depthEuclid);
-void sdf_smooth(SDF_GridData& sdf, uint width=3, uint iters=2);

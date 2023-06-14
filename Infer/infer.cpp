@@ -263,7 +263,7 @@ void infer::Factor::init(const infer::VariableList& vars){
 void infer::checkConsistent(const infer::Factor &f){
   CHECK_EQ(f.variables.N,f.varIds.N, "");
   CHECK_EQ(f.variables.N,f.dim.N, "");
-  for(auto v: f.variables.itEnumerated()){
+  for(auto v: rai::enumerated(f.variables)){
     CHECK_EQ(v->id ,f.varIds(v.count), "");
     CHECK_EQ(v->dim,f.dim(v.count), "");
   }
@@ -412,8 +412,7 @@ void infer::Factor::writeExtremelyNice(std::ostream& os) const {
   uint i, k;
   for(i=0; i<P.N; i++){
     os<<i <<": " <<P.elem(i) <<" (*" <<exp(logP) <<")     ";
-    uintA config;
-    P.getIndexTuple(config, i);
+    uintA config = getIndexTuple(i, P.dim());
     FOR1D(variables, k){
       os<<variables(k)->name <<"=" <<config(k) <<"   ";
     }
@@ -470,7 +469,7 @@ void infer::MessagePair::init(infer::Factor *_f1, infer::Factor *_f2){
   f2 = _f2;
   v1 = v2 = NULL;
   v_to_v_fac = NULL;
-  setSection(variables, f1->variables, f2->variables);
+  variables = setSection(f1->variables, f2->variables);
   m12.init(variables);  m12.setOne();
   m21.init(variables);  m21.setOne();
   f1->messages.append(this);
@@ -1268,7 +1267,7 @@ void getPick(uintA& pick, const infer::VariableList& base_vars, const infer::Var
 
 void infer::tensorProduct(infer::Factor& f, const infer::Factor& a, const infer::Factor& b){
   infer::VariableList fvars;
-  setUnion(fvars, a.variables, b.variables);
+  fvars = setUnion(a.variables, b.variables);
   f.init(fvars);
   f.P.resize(f.dim);
   uintA pickA, pickB;
@@ -1281,7 +1280,7 @@ void infer::tensorProduct(infer::Factor& f, const infer::Factor& a, const infer:
 
 void infer::tensorProductMarginal(infer::Factor& f, const infer::Factor& a, const infer::Factor& b, const infer::VariableList& s){
   infer::VariableList fvars;
-  setUnion(fvars, a.variables, b.variables);
+  fvars = setUnion(a.variables, b.variables);
   setMinus(fvars, s);
   f.init(fvars);
   f.P.resize(f.dim);
@@ -1669,7 +1668,7 @@ void infer::JunctionTree::addEvidence(FactorGraph& junctionTree, infer::Factor& 
   uint f;
   infer::VariableList varSection;
   FOR1D(junctionTree.F, f){
-    setSection(varSection, evid.variables, junctionTree.F(f)->variables);
+    varSection = setSection(evid.variables, junctionTree.F(f)->variables);
     if(varSection.N > 0){
       infer::MessagePair* s = new infer::MessagePair(junctionTree.F(f), &evid);
       junctionTree.F.append(&evid);
@@ -1699,7 +1698,7 @@ void infer::JunctionTree::buildTriangulatedCliques(const infer::FactorList& fact
   // determine existing variables
   infer::VariableList vars;
   for(f=0; f < factors.N; f++){
-    setUnion(vars, vars, factors(f)->variables);
+    vars = setUnion(vars, factors(f)->variables);
   }
   std::sort(vars.p, vars.p + vars.N);
   if(DEBUG)
@@ -1793,7 +1792,7 @@ void infer::JunctionTree::buildTriangulatedCliques(const infer::FactorList& fact
       cout <<"Setting up new factor [START]" <<endl;
     infer::VariableList vars;
     vars.append(elimOrder(v));
-    setUnion(vars, vars, remainingNeighbors);
+    vars = setUnion(vars, remainingNeighbors);
     if(DEBUG)
       cout <<"Variables [" <<vars.N <<"]: " <<vars <<endl;
     //if(DEBUG_VERBOSE){cout <<"Variables: "; printvars(vars);cout <<endl;}
@@ -1903,7 +1902,7 @@ void infer::JunctionTree::buildMaxSpanningTree(infer::FactorList& factors, const
     FOR1D(factors, f2){
       if(f == f2)
         continue;
-      setSection(tempA, factors(f)->variables, factors(f2)->variables);
+      tempA = setSection(factors(f)->variables, factors(f2)->variables);
       if(tempA.N > 0){
         sharesVariables(f) = true;
         sharesVariables(f2) = true;
@@ -1928,7 +1927,7 @@ void infer::JunctionTree::buildMaxSpanningTree(infer::FactorList& factors, const
   boolA candidate_msg_pairs_contained;
   FOR1D(factors, f){
     for(f2 = f+1; f2 < factors.N; f2++){
-      setSection(tempA, factors(f)->variables, factors(f2)->variables);
+      tempA = setSection(factors(f)->variables, factors(f2)->variables);
       if(tempA.N > 0){
         MessagePair* s = new MessagePair(factors(f), factors(f2));
         candidate_msg_pairs.append(s);

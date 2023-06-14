@@ -90,8 +90,8 @@ void run_pomdpEM_lev2(const mdp::MDP& mdp, MDP_Parameters& PARAMS, bool hierarch
   //init policy
   uint d0=PARAMS.d0,d1=PARAMS.d1,da=mdp.Pxax.d1,dy=mdp.Pyxa.d0;
   mdp::FSC_lev2 fsc;
-  fsc.P01y0.resize(TUP(d0,d1,dy,d0));
-  fsc.P1y01.resize(TUP(d1,dy,d0,d1));
+  fsc.P01y0.resize(uintA{d0,d1,dy,d0});
+  fsc.P1y01.resize(uintA{d1,dy,d0,d1});
   mdp::zeroNodeStart(fsc.P0,d0);
   mdp::zeroNodeStart(fsc.P1,d1);
   mdp::oneNodeOneAction(fsc.Pa0,da,d0,1.,1.,100.);
@@ -99,7 +99,7 @@ void run_pomdpEM_lev2(const mdp::MDP& mdp, MDP_Parameters& PARAMS, bool hierarch
   mdp::generalNode1Transition(fsc.P1y01,d1,dy,d0,.1,.1,1.);
 
   if(hierarchy){
-    initHierarchical(TUP(da,d1,d0/2).min(),fsc);
+    NIY//initHierarchical(uintA{da,d1,d0/2}.min(),fsc);
   }else{
     fsc.hierarchical=false;
   }
