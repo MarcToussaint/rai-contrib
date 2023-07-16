@@ -1,6 +1,6 @@
 #include "vivecontroller.h"
 
-#ifdef RAI_VIVECONTROLLER
+#ifdef RAI_OPENVR
 
 #include <Kin/frame.h>
 double toRadians(double degrees) {

@@ -65,6 +65,7 @@ void mdp::showAB(const arr& alpha, const arr& beta){
 void mdp::plotPolicyAndValue(const arr& pi, const arr& V, const MDP& mdp, bool wait){
   plot()->Opengl(false);
   plot()->colors=false;
+  plot()->light=true;
   plot()->drawBox=true;
   
   //plotModule.grid=true;
